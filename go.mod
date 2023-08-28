@@ -1,3 +1,8 @@
 module github.com/padiazg/notifier
 
-go 1.21.0
+go 1.20
+
+require (
+	github.com/Azure/go-amqp v1.0.1
+	github.com/rabbitmq/amqp091-go v1.8.1
+)

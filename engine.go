@@ -37,5 +37,5 @@ func (ne *NotificationEngine) DispatchAndTrack(event EventType, data interface{}
 
 func (ne *NotificationEngine) saveNotificationToTable(notification Notification) {
 	// Implement saving logic here
-	fmt.Printf("Saved notification to table: %+v\n", notification)
+	fmt.Printf("[not implemented] Save: %+v\n", notification)
 }
