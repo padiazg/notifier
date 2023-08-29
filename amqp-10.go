@@ -31,6 +31,8 @@ func (mn *AMQP10Notifier) SendNotification(notification *Notification) Notificat
 }
 
 func (mn *AMQP10Notifier) connectAndSend(payload []byte) error {
+	// https://pkg.go.dev/github.com/Azure/go-amqp#example-package
+
 	// Simulate connecting to the message queue and sending the payload
 	// Replace this with actual message queue library usage
 	fmt.Printf("Sending notification to queue '%s': %s\n", mn.QueueName, payload)
