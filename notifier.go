@@ -5,6 +5,7 @@ type EventType string
 
 // Notification represents a notification with its details
 type Notification struct {
+	ID    string
 	Event EventType
 	Data  interface{}
 }
@@ -17,5 +18,5 @@ type NotificationResult struct {
 
 // Notifier is the interface for sending notifications
 type Notifier interface {
-	SendNotification(notification Notification) NotificationResult
+	SendNotification(notification *Notification) NotificationResult
 }

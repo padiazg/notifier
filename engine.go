@@ -1,41 +1,50 @@
 package notifier
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 // NotificationEngine handles the dispatch and tracking of notifications
 type NotificationEngine struct {
 	Webhook Notifier
 	MQ      Notifier
-	// You can add other fields for tracking, logging, etc.
+	OnError func(error)
 }
 
-func (ne *NotificationEngine) DispatchAndTrack(event EventType, data interface{}) {
-	notification := Notification{Event: event, Data: data}
+func (ne *NotificationEngine) Dispatch(notification *Notification) {
+	if notification == nil {
+		return
+	}
 
-	// Dispatch asynchronously using goroutines
+	if notification.ID == "" {
+		notification.ID = uuid.New().String()
+	}
+
 	var wg sync.WaitGroup
-	wg.Add(2)
 
-	go func() {
-		defer wg.Done()
-		ne.Webhook.SendNotification(notification)
-	}()
+	if ne.Webhook != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res := ne.Webhook.SendNotification(notification)
+			if !res.Success && ne.OnError != nil {
+				ne.OnError(res.Error)
+			}
+		}()
+	}
 
-	go func() {
-		defer wg.Done()
-		ne.MQ.SendNotification(notification)
-	}()
+	if ne.MQ != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res := ne.MQ.SendNotification(notification)
+			if !res.Success && ne.OnError != nil {
+				ne.OnError(res.Error)
+			}
+		}()
+	}
 
 	wg.Wait()
-
-	// Save notification and result to a table for tracking
-	ne.saveNotificationToTable(notification)
-}
-
-func (ne *NotificationEngine) saveNotificationToTable(notification Notification) {
-	// Implement saving logic here
-	fmt.Printf("[not implemented] Save: %+v\n", notification)
 }

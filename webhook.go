@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,7 +15,7 @@ type WebhookNotifier struct {
 	// You can add fields specific to the WebhookNotifier
 }
 
-func (wn *WebhookNotifier) SendNotification(notification Notification) NotificationResult {
+func (wn *WebhookNotifier) SendNotification(notification *Notification) NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {
@@ -22,7 +23,22 @@ func (wn *WebhookNotifier) SendNotification(notification Notification) Notificat
 	}
 
 	// Send the POST request to the webhook endpoint
-	resp, err := http.Post(wn.Endpoint, "application/json", bytes.NewBuffer(payload))
+	r, err := http.NewRequest(http.MethodPost, wn.Endpoint, bytes.NewBuffer(payload))
+	if err != nil {
+		return NotificationResult{Success: false, Error: err}
+	}
+
+	r.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	if wn.Insecure {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	resp, err := client.Do(r)
 	if err != nil {
 		return NotificationResult{Success: false, Error: err}
 	}

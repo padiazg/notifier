@@ -14,7 +14,7 @@ type AMQP10Notifier struct {
 	session   *amqp.Session
 }
 
-func (mn *AMQP10Notifier) SendNotification(notification Notification) NotificationResult {
+func (mn *AMQP10Notifier) SendNotification(notification *Notification) NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {

@@ -1,3 +1,7 @@
 # Event notifier
-An event notifier for golang
+A simple event notifier for golang. 
 
+## Usage
+```go
+
+```

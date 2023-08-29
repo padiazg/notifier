@@ -14,7 +14,7 @@ type AMQP09Notifier struct {
 	ch        *amqp.Channel
 }
 
-func (mn *AMQP09Notifier) SendNotification(notification Notification) NotificationResult {
+func (mn *AMQP09Notifier) SendNotification(notification *Notification) NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {
