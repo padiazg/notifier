@@ -1,19 +1,25 @@
 package notifier
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	amqp "github.com/Azure/go-amqp"
 )
 
-// MQNotifier implements the Notifier interface for message queues
+// AMQP10Notifier implements the Notifier interface for message queues
 type AMQP10Notifier struct {
-	QueueName string // The name of the message queue
+	QueueName string
+	Address   string
 	conn      *amqp.Conn
 	session   *amqp.Session
+	sender    *amqp.Sender
+	ctx       context.Context
 }
 
+// SendNotification sends a notification to the message queue
 func (mn *AMQP10Notifier) SendNotification(notification *Notification) NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
@@ -22,7 +28,7 @@ func (mn *AMQP10Notifier) SendNotification(notification *Notification) Notificat
 	}
 
 	// Connect to the message queue and send the payload
-	err = mn.connectAndSend(payload)
+	err = mn.send(payload)
 	if err != nil {
 		return NotificationResult{Success: false, Error: err}
 	}
@@ -30,11 +36,56 @@ func (mn *AMQP10Notifier) SendNotification(notification *Notification) Notificat
 	return NotificationResult{Success: true}
 }
 
-func (mn *AMQP10Notifier) connectAndSend(payload []byte) error {
-	// https://pkg.go.dev/github.com/Azure/go-amqp#example-package
+// send sends a message to the message queue
+// https://pkg.go.dev/github.com/Azure/go-amqp#example-package
+func (mn *AMQP10Notifier) send(payload []byte) error {
+	var (
+		ctx, cancel = context.WithTimeout(mn.ctx, 3*time.Second)
+		err         error
+	)
+	defer cancel()
 
-	// Simulate connecting to the message queue and sending the payload
-	// Replace this with actual message queue library usage
-	fmt.Printf("Sending notification to queue '%s': %s\n", mn.QueueName, payload)
+	// send message
+	err = mn.sender.Send(ctx, amqp.NewMessage(payload), nil)
+	if err != nil {
+		return fmt.Errorf("sending message: %v", err)
+	}
+
 	return nil
+}
+
+// Connect connects to the message queue
+// this can used to reconnect to the message queue in case of a failure
+func (mn *AMQP10Notifier) Connect() error {
+	var err error
+
+	// create a context
+	mn.ctx = context.TODO()
+
+	// create a connection
+	mn.conn, err = amqp.Dial(mn.ctx, mn.Address, nil)
+	if err != nil {
+		return fmt.Errorf("dialing AMQP server: %v", err)
+	}
+
+	// create a session
+	mn.session, err = mn.conn.NewSession(mn.ctx, nil)
+	if err != nil {
+		return fmt.Errorf("creating AMQP session: %v", err)
+	}
+
+	// create a sender
+	mn.sender, err = mn.session.NewSender(mn.ctx, mn.QueueName, &amqp.SenderOptions{
+		TargetDurability: amqp.DurabilityUnsettledState,
+	})
+	if err != nil {
+		return fmt.Errorf("creating sender link: %v", err)
+	}
+
+	return nil
+}
+
+// Close closes the connection to the message queue
+func (mn *AMQP10Notifier) Close() error {
+	return mn.conn.Close()
 }

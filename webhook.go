@@ -57,3 +57,14 @@ func (wn *WebhookNotifier) SendNotification(notification *Notification) Notifica
 
 	return NotificationResult{Success: true}
 }
+
+// Close is a no-op for the WebhookNotifier
+func (wn *WebhookNotifier) Close() error {
+	// You can add any cleanup code here
+	return nil
+}
+
+// Connect is a no-op for the WebhookNotifier
+func (wn *WebhookNotifier) Connect() error {
+	return nil
+}

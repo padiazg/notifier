@@ -28,7 +28,7 @@ func main() {
 
 	{
 		// create a receiver
-		receiver, err := session.NewReceiver(ctx, "portal", &amqp.ReceiverOptions{
+		receiver, err := session.NewReceiver(ctx, "notifier", &amqp.ReceiverOptions{
 			SourceDurability: amqp.DurabilityUnsettledState,
 		})
 		if err != nil {
@@ -40,6 +40,8 @@ func main() {
 			receiver.Close(ctx)
 			cancel()
 		}()
+
+		log.Printf("Connected to queue\n")
 
 		for {
 			// receive next message

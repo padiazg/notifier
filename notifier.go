@@ -18,5 +18,7 @@ type NotificationResult struct {
 
 // Notifier is the interface for sending notifications
 type Notifier interface {
+	Connect() error
+	Close() error
 	SendNotification(notification *Notification) NotificationResult
 }
