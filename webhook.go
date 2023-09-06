@@ -10,8 +10,9 @@ import (
 
 // WebhookNotifier implements the Notifier interface for webhooks
 type WebhookNotifier struct {
-	Endpoint string // The URL of the webhook endpoint
-	Insecure bool   // Whether to skip TLS verification
+	Endpoint string            // The URL of the webhook endpoint
+	Insecure bool              // Whether to skip TLS verification
+	Headers  map[string]string // Additional headers to send with the request
 	// You can add fields specific to the WebhookNotifier
 }
 
@@ -28,7 +29,12 @@ func (wn *WebhookNotifier) SendNotification(notification *Notification) Notifica
 		return NotificationResult{Success: false, Error: err}
 	}
 
+	// Ser headers
 	r.Header.Set("Content-Type", "application/json")
+
+	for k, v := range wn.Headers {
+		r.Header.Set(k, v)
+	}
 
 	client := &http.Client{}
 
