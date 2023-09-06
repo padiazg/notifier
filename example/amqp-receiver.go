@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 	"time"
 
 	"github.com/Azure/go-amqp"
+	n "github.com/padiazg/notifier/notification"
 )
 
 func main() {
@@ -47,15 +48,23 @@ func main() {
 			// receive next message
 			msg, err := receiver.Receive(ctx, nil)
 			if err != nil {
-				log.Fatal("Reading message from AMQP:", err)
+				log.Printf("Reading message from AMQP: %v\n", err)
 			}
 
 			// accept message
 			if err = receiver.AcceptMessage(context.TODO(), msg); err != nil {
-				log.Fatalf("Failure accepting message: %v", err)
+				log.Printf("Failure accepting message: %v", err)
 			}
 
-			fmt.Printf("Message received: %s\n", msg.GetData())
+			// Parse the incoming JSON payload
+			var notification n.Notification
+			err = json.Unmarshal(msg.GetData(), &notification)
+			if err != nil {
+				log.Printf("Failed to decode JSON payload: %v", err)
+				return
+			}
+
+			log.Printf("Message received: %s\n", msg.GetData())
 		}
 	}
 

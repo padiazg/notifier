@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/padiazg/notifier"
+	n "github.com/padiazg/notifier/notification"
 )
 
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Parse the incoming JSON payload
-	var notification notifier.Notification
+	var notification n.Notification
 	err := json.NewDecoder(r.Body).Decode(&notification)
 	if err != nil {
 		http.Error(w, "Failed to decode JSON payload", http.StatusBadRequest)

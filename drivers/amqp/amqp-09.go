@@ -1,34 +1,41 @@
-package notifier
+package amqp
 
 import (
 	"encoding/json"
 	"fmt"
 
+	n "github.com/padiazg/notifier/notification"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // AMQP09Notifier implements the Notifier interface for message queues
 type AMQP09Notifier struct {
-	QueueName string // The name of the message queue
-	conn      *amqp.Connection
-	channel   *amqp.Channel
+	Config
+	conn    *amqp.Connection
+	channel *amqp.Channel
+}
+
+func NewAMQP09Notifier(config Config) *AMQP09Notifier {
+	return &AMQP09Notifier{
+		Config: config,
+	}
 }
 
 // SendNotification sends a notification to the message queue
-func (mn *AMQP09Notifier) SendNotification(notification *Notification) NotificationResult {
+func (mn *AMQP09Notifier) SendNotification(notification *n.Notification) n.NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
 	// Connect to the message queue and send the payload
 	err = mn.send(payload)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
-	return NotificationResult{Success: true}
+	return n.NotificationResult{Success: true}
 }
 
 // send sends a message to the message queue

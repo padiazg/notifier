@@ -7,27 +7,29 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/padiazg/notifier"
+	ad "github.com/padiazg/notifier/drivers/amqp"
+	wd "github.com/padiazg/notifier/drivers/webhook"
+	e "github.com/padiazg/notifier/engine"
+	n "github.com/padiazg/notifier/notification"
 )
 
 const (
-	UserCreated notifier.EventType = "UserCreated"
-	UserUpdated notifier.EventType = "UserUpdated"
-	UserDeleted notifier.EventType = "UserDeleted"
+	SomeEvent    n.EventType = "SomeEvent"
+	AnotherEvent n.EventType = "AnotherEvent"
 )
 
 func main() {
 	var (
 		// Initialize the notification engine
-		notificationEngine = &notifier.NotificationEngine{
-			MQ: &notifier.AMQP10Notifier{
+		notificationEngine = &e.NotificationEngine{
+			MQ: ad.NewAMQP10Notifier(ad.Config{
 				QueueName: "notifier",
-				Address:   "amqp:localhost",
-			},
-			Webhook: &notifier.WebhookNotifier{
+				Address:   "amqp://localhost",
+			}),
+			Webhook: wd.NewWebhookNotifier(wd.Config{
 				Endpoint: "https://localhost:8443/webhook",
 				Insecure: true,
-			},
+			}),
 			OnError: func(err error) {
 				fmt.Printf("Error sending notification: %v\n", err)
 			},
@@ -48,31 +50,25 @@ func main() {
 	}
 	defer notificationEngine.MQ.Close()
 
-	// Initialize the webhook receiver
-	notificationEngine.Webhook = &notifier.WebhookNotifier{
-		Endpoint: "https://localhost:8443/webhook",
-		Insecure: true,
-	}
-
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #1")
-		notificationEngine.Dispatch(&notifier.Notification{
-			Event: UserCreated,
-			Data:  "sample data #1",
+		notificationEngine.Dispatch(&n.Notification{
+			Event: SomeEvent,
+			Data:  "simple text data",
 		})
 	}()
 
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #2")
-		notificationEngine.Dispatch(&notifier.Notification{
-			Event: UserUpdated,
+		notificationEngine.Dispatch(&n.Notification{
+			Event: AnotherEvent,
 			Data: struct {
 				ID   uint
 				Name string
-			}{ID: 1, Name: "sample data #2"},
+			}{ID: 1, Name: "complex data"},
 		})
 	}()
 

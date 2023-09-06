@@ -1,19 +1,20 @@
-package notifier
+package engine
 
 import (
 	"sync"
 
 	"github.com/google/uuid"
+	n "github.com/padiazg/notifier/notification"
 )
 
 // NotificationEngine handles the dispatch and tracking of notifications
 type NotificationEngine struct {
-	Webhook Notifier
-	MQ      Notifier
+	Webhook n.Notifier
+	MQ      n.Notifier
 	OnError func(error)
 }
 
-func (ne *NotificationEngine) Dispatch(notification *Notification) {
+func (ne *NotificationEngine) Dispatch(notification *n.Notification) {
 	if notification == nil {
 		return
 	}

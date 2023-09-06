@@ -1,4 +1,4 @@
-package notifier
+package amqp
 
 import (
 	"context"
@@ -7,33 +7,39 @@ import (
 	"time"
 
 	amqp "github.com/Azure/go-amqp"
+	n "github.com/padiazg/notifier/notification"
 )
 
 // AMQP10Notifier implements the Notifier interface for message queues
 type AMQP10Notifier struct {
-	QueueName string
-	Address   string
-	conn      *amqp.Conn
-	session   *amqp.Session
-	sender    *amqp.Sender
-	ctx       context.Context
+	Config
+	conn    *amqp.Conn
+	session *amqp.Session
+	sender  *amqp.Sender
+	ctx     context.Context
+}
+
+func NewAMQP10Notifier(config Config) *AMQP10Notifier {
+	return &AMQP10Notifier{
+		Config: config,
+	}
 }
 
 // SendNotification sends a notification to the message queue
-func (mn *AMQP10Notifier) SendNotification(notification *Notification) NotificationResult {
+func (mn *AMQP10Notifier) SendNotification(notification *n.Notification) n.NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
 	// Connect to the message queue and send the payload
 	err = mn.send(payload)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
-	return NotificationResult{Success: true}
+	return n.NotificationResult{Success: true}
 }
 
 // send sends a message to the message queue

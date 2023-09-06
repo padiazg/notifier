@@ -1,4 +1,4 @@
-package notifier
+package notification
 
 // EventType represents the possible event types
 type EventType string

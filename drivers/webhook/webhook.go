@@ -1,4 +1,4 @@
-package notifier
+package webhook
 
 import (
 	"bytes"
@@ -6,27 +6,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	n "github.com/padiazg/notifier/notification"
 )
 
 // WebhookNotifier implements the Notifier interface for webhooks
 type WebhookNotifier struct {
-	Endpoint string            // The URL of the webhook endpoint
-	Insecure bool              // Whether to skip TLS verification
-	Headers  map[string]string // Additional headers to send with the request
-	// You can add fields specific to the WebhookNotifier
+	Config
 }
 
-func (wn *WebhookNotifier) SendNotification(notification *Notification) NotificationResult {
+func NewWebhookNotifier(config Config) *WebhookNotifier {
+	return &WebhookNotifier{
+		Config: config,
+	}
+}
+
+func (wn *WebhookNotifier) SendNotification(notification *n.Notification) n.NotificationResult {
 	// Serialize the notification data to JSON
 	payload, err := json.Marshal(notification)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
 	// Send the POST request to the webhook endpoint
 	r, err := http.NewRequest(http.MethodPost, wn.Endpoint, bytes.NewBuffer(payload))
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 
 	// Ser headers
@@ -46,13 +51,13 @@ func (wn *WebhookNotifier) SendNotification(notification *Notification) Notifica
 
 	resp, err := client.Do(r)
 	if err != nil {
-		return NotificationResult{Success: false, Error: err}
+		return n.NotificationResult{Success: false, Error: err}
 	}
 	defer resp.Body.Close()
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
-		return NotificationResult{Success: false, Error: fmt.Errorf("webhook returned non-OK status: %d", resp.StatusCode)}
+		return n.NotificationResult{Success: false, Error: fmt.Errorf("webhook returned non-OK status: %d", resp.StatusCode)}
 	}
 
 	// Read the response body if needed
@@ -61,7 +66,7 @@ func (wn *WebhookNotifier) SendNotification(notification *Notification) Notifica
 	// 	return NotificationResult{Success: false, Error: err}
 	// }
 
-	return NotificationResult{Success: true}
+	return n.NotificationResult{Success: true}
 }
 
 // Close is a no-op for the WebhookNotifier
