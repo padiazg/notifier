@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -11,15 +12,30 @@ import (
 
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Parse the incoming JSON payload
-	var notification n.Notification
-	err := json.NewDecoder(r.Body).Decode(&notification)
+	var (
+		notification n.Notification
+		err          error
+	)
+
+	err = json.NewDecoder(r.Body).Decode(&notification)
 	if err != nil {
 		http.Error(w, "Failed to decode JSON payload", http.StatusBadRequest)
 		return
 	}
 
+	formated, err := json.MarshalIndent(notification, "", "  ")
+	if err != nil {
+		log.Printf("Failed to format payload: %v", err)
+		return
+	}
+
 	// Process the received notification
-	fmt.Printf("%v Received notification: %+v\n", r.Proto, notification)
+	fmt.Printf("%v Received notification: %+v\n", r.Method, string(formated))
+
+	// Print the request headers
+	var headers []byte
+	headers, err = json.MarshalIndent(r.Header, "", "  ")
+	fmt.Printf("%v Headers: %s\n", r.Method, string(headers))
 
 	// Respond with a success message
 	w.WriteHeader(http.StatusOK)
@@ -36,24 +52,24 @@ func main() {
 	mux.HandleFunc("/webhook", handleWebhook)
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":4000",
 		Handler: mux,
 	}
 
 	serverTLS := &http.Server{
-		Addr:    ":8443",
+		Addr:    ":4443",
 		Handler: mux,
 	}
 
 	go func() {
-		fmt.Println("HTTP Webhook server listening on :8080")
+		fmt.Printf("HTTP Webhook server listening on %s\n", server.Addr)
 		if err := server.ListenAndServe(); err != nil {
 			panic(err)
 		}
 	}()
 
 	go func() {
-		fmt.Println("HTTPS Webhook server listening on :8443")
+		fmt.Printf("HTTPS Webhook server listening on %s\n", serverTLS.Addr)
 		if err := serverTLS.ListenAndServeTLS("./localhost.crt", "./localhost.key"); err != nil {
 			panic(err)
 		}

@@ -64,7 +64,13 @@ func main() {
 				return
 			}
 
-			log.Printf("Message received: %s\n", msg.GetData())
+			formated, err := json.MarshalIndent(notification, "", "  ")
+			if err != nil {
+				log.Printf("Failed to format payload: %v", err)
+				return
+			}
+
+			log.Printf("Message received: %s\n", formated)
 		}
 	}
 

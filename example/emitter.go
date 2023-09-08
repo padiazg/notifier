@@ -21,19 +21,24 @@ const (
 func main() {
 	var (
 		// Initialize the notification engine
-		notificationEngine = &e.NotificationEngine{
-			MQ: ad.NewAMQP10Notifier(ad.Config{
+		notificationEngine = e.NewNotificationEngine(&e.Config{
+			MQ: &ad.Config{
+				Protocol:  ad.ProtocolAMQP10,
 				QueueName: "notifier",
 				Address:   "amqp://localhost",
-			}),
-			Webhook: wd.NewWebhookNotifier(wd.Config{
-				Endpoint: "https://localhost:8443/webhook",
+			},
+			WebHook: &wd.Config{
+				Endpoint: "https://localhost:4443/webhook",
 				Insecure: true,
-			}),
+				Headers: map[string]string{
+					"Authorization": "Bearer xyz123",
+					"X-Portal-Id":   "1234567890",
+				},
+			},
 			OnError: func(err error) {
 				fmt.Printf("Error sending notification: %v\n", err)
 			},
-		}
+		})
 
 		wg   sync.WaitGroup
 		done = make(chan bool)

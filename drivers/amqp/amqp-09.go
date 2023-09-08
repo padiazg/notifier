@@ -10,12 +10,12 @@ import (
 
 // AMQP09Notifier implements the Notifier interface for message queues
 type AMQP09Notifier struct {
-	Config
+	*Config
 	conn    *amqp.Connection
 	channel *amqp.Channel
 }
 
-func NewAMQP09Notifier(config Config) *AMQP09Notifier {
+func NewAMQP09Notifier(config *Config) *AMQP09Notifier {
 	return &AMQP09Notifier{
 		Config: config,
 	}

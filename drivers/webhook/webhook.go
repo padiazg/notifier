@@ -12,10 +12,10 @@ import (
 
 // WebhookNotifier implements the Notifier interface for webhooks
 type WebhookNotifier struct {
-	Config
+	*Config
 }
 
-func NewWebhookNotifier(config Config) *WebhookNotifier {
+func NewWebhookNotifier(config *Config) *WebhookNotifier {
 	return &WebhookNotifier{
 		Config: config,
 	}

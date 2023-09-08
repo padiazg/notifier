@@ -12,14 +12,14 @@ import (
 
 // AMQP10Notifier implements the Notifier interface for message queues
 type AMQP10Notifier struct {
-	Config
+	*Config
 	conn    *amqp.Conn
 	session *amqp.Session
 	sender  *amqp.Sender
 	ctx     context.Context
 }
 
-func NewAMQP10Notifier(config Config) *AMQP10Notifier {
+func NewAMQP10Notifier(config *Config) *AMQP10Notifier {
 	return &AMQP10Notifier{
 		Config: config,
 	}
