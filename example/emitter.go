@@ -6,9 +6,10 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
-	ad "github.com/padiazg/notifier/drivers/amqp"
-	wd "github.com/padiazg/notifier/drivers/webhook"
+	ac "github.com/padiazg/notifier/connector/amqp"
+	wc "github.com/padiazg/notifier/connector/webhook"
 	e "github.com/padiazg/notifier/engine"
 	n "github.com/padiazg/notifier/notification"
 )
@@ -20,55 +21,54 @@ const (
 
 func main() {
 	var (
-		// Initialize the notification engine
-		notificationEngine = e.NewNotificationEngine(&e.Config{
-			MQ: &ad.Config{
-				Protocol:  ad.ProtocolAMQP10,
-				QueueName: "notifier",
-				Address:   "amqp://localhost",
-			},
-			WebHook: &wd.Config{
-				Endpoint: "https://localhost:4443/webhook",
-				Insecure: true,
-				Headers: map[string]string{
-					"Authorization": "Bearer xyz123",
-					"X-Portal-Id":   "1234567890",
-				},
-			},
-			OnError: func(err error) {
-				fmt.Printf("Error sending notification: %v\n", err)
-			},
-		})
+		engine = e.NewEngine(nil)
 
 		wg   sync.WaitGroup
 		done = make(chan bool)
 		c    = make(chan os.Signal, 2)
-		err  error
 	)
+
+	// add a webhook notifier
+	engine.AddNotifier(wc.NewWebhookNotifier(&wc.Config{
+		Name:     "Webhook",
+		Endpoint: "https://localhost:4443/webhook",
+		Insecure: true,
+		Headers: map[string]string{
+			"Authorization": "Bearer xyz123",
+			"X-Portal-Id":   "1234567890",
+		},
+	}))
+
+	// add an AMQP notifier
+	engine.AddNotifier(ac.NewAMQP10Notifier(&ac.Config{
+		Name:      "AMQP",
+		Protocol:  ac.ProtocolAMQP10,
+		QueueName: "notifier",
+		Address:   "amqp://localhost",
+	}))
 
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	// Initialize the message queue notifier
-
-	if err = notificationEngine.MQ.Connect(); err != nil {
-		panic(err)
-	}
-	defer notificationEngine.MQ.Close()
+	fmt.Println("Starting engine...")
+	engine.Start()
 
 	wg.Add(2)
+
+	// first notification
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #1")
-		notificationEngine.Dispatch(&n.Notification{
+		engine.Dispatch(&n.Notification{
 			Event: SomeEvent,
 			Data:  "simple text data",
 		})
 	}()
 
+	// second notification
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #2")
-		notificationEngine.Dispatch(&n.Notification{
+		engine.Dispatch(&n.Notification{
 			Event: AnotherEvent,
 			Data: struct {
 				ID   uint
@@ -78,12 +78,20 @@ func main() {
 	}()
 
 	wg.Wait()
+
+	//let's stop the engine
+	engine.Stop()
+	// give some time to the engine to stop
+	time.Sleep(1 * time.Second)
+
+	// let's close the done channel and exit the program
 	close(done)
 
 	for {
 		select {
 		case <-done:
-			fmt.Println("Closing")
+			fmt.Println("Exiting...")
+			// engine.Stop()
 			return
 		case <-c:
 			fmt.Println("Ctrl+C pressed")

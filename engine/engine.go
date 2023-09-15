@@ -1,75 +1,81 @@
 package engine
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
-	ad "github.com/padiazg/notifier/drivers/amqp"
-	wd "github.com/padiazg/notifier/drivers/webhook"
-	n "github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/notification"
 )
 
-// NotificationEngine handles the dispatch and tracking of notifications
-type NotificationEngine struct {
-	WebHook n.Notifier
-	MQ      n.Notifier
-	OnError func(error)
+// Engine handles the dispatch and tracking of notifications
+type Engine struct {
+	Webhook   notification.Notifier
+	AMQP      notification.Notifier
+	OnError   func(error)
+	notifiers []notification.Notifier
 }
 
-func NewNotificationEngine(config *Config) *NotificationEngine {
-	notificationEngine := &NotificationEngine{}
-
-	if config == nil {
-		return notificationEngine
-	}
-
-	if config.WebHook != nil {
-		notificationEngine.WebHook = wd.NewWebhookNotifier(config.WebHook)
-	}
-
-	if config.MQ != nil {
-		notificationEngine.MQ = ad.NewAMQPNotifier(config.MQ)
-	}
-
-	if config.OnError != nil {
-		notificationEngine.OnError = config.OnError
-	}
-
-	return notificationEngine
+func (e *Engine) AddNotifier(n notification.Notifier) {
+	e.notifiers = append(e.notifiers, n)
 }
 
-func (ne *NotificationEngine) Dispatch(notification *n.Notification) {
-	if notification == nil {
+func (e *Engine) Start() error {
+	fmt.Println("Engine.Start starting workers...")
+
+	for _, n := range e.notifiers {
+		fmt.Printf("Starting worker %s\n", n.Name())
+		if err := n.Connect(); err != nil {
+			fmt.Printf("Error starting worker %T: %v\n", n.Name(), err)
+			continue
+		}
+
+		go func(n notification.Notifier) {
+			n.StartWorker()
+		}(n)
+	}
+
+	return nil
+}
+
+func (e *Engine) Stop() error {
+	fmt.Println("Engine.Stop")
+
+	for _, n := range e.notifiers {
+		fmt.Printf("Stopping worker %T\n", n.Name())
+		if ch := n.GetChannel(); ch != nil {
+			close(ch)
+		}
+	}
+
+	return nil
+}
+
+func (e *Engine) Dispatch(message *notification.Notification) {
+	fmt.Printf("Engine.Dispatch\n")
+	if message == nil {
 		return
 	}
 
-	if notification.ID == "" {
-		notification.ID = uuid.New().String()
+	if message.ID == "" {
+		message.ID = uuid.New().String()
 	}
 
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 
-	if ne.WebHook != nil {
+	for _, n := range e.notifiers {
 		wg.Add(1)
-		go func() {
+		go func(n notification.Notifier) {
 			defer wg.Done()
-			res := ne.WebHook.SendNotification(notification)
-			if !res.Success && ne.OnError != nil {
-				ne.OnError(res.Error)
-			}
-		}()
-	}
-
-	if ne.MQ != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			res := ne.MQ.SendNotification(notification)
-			if !res.Success && ne.OnError != nil {
-				ne.OnError(res.Error)
-			}
-		}()
+			n.Notify(message)
+		}(n)
 	}
 
 	wg.Wait()
+}
+
+func (e *Engine) HandleError(err error) {
+	if e.OnError != nil {
+		e.OnError(err)
+	}
 }
