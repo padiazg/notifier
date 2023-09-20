@@ -10,8 +10,8 @@ import (
 
 // Engine handles the dispatch and tracking of notifications
 type Engine struct {
-	Webhook   notification.Notifier
-	AMQP      notification.Notifier
+	// Webhook   notification.Notifier
+	// AMQP      notification.Notifier
 	OnError   func(error)
 	notifiers []notification.Notifier
 }
