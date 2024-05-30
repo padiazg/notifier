@@ -23,10 +23,10 @@ $ openssl req -x509 \
 ## Run the demo
 ```bash
 # run MQ receiver
-go run amqp-receiver.go
+go run amqp-receiver/amqp-receiver.go
 
 # run webhook receiver
-go run webhook-receiver.go
+go run webhook-receiver/webhook-receiver.go
 
 # run emmiter
 go run emitter.go
