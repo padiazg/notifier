@@ -30,12 +30,12 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the received notification
-	fmt.Printf("%v Received notification: %+v\n", r.Method, string(formated))
+	log.Printf("%v Received notification: %+v\n", r.Method, string(formated))
 
 	// Print the request headers
 	var headers []byte
 	headers, err = json.MarshalIndent(r.Header, "", "  ")
-	fmt.Printf("%v Headers: %s\n", r.Method, string(headers))
+	log.Printf("%v Headers: %s\n", r.Method, string(headers))
 
 	// Respond with a success message
 	w.WriteHeader(http.StatusOK)
@@ -62,15 +62,15 @@ func main() {
 	}
 
 	go func() {
-		fmt.Printf("HTTP Webhook server listening on %s\n", server.Addr)
+		log.Printf("HTTP Webhook server listening on %s\n", server.Addr)
 		if err := server.ListenAndServe(); err != nil {
 			panic(err)
 		}
 	}()
 
 	go func() {
-		fmt.Printf("HTTPS Webhook server listening on %s\n", serverTLS.Addr)
-		if err := serverTLS.ListenAndServeTLS("./localhost.crt", "./localhost.key"); err != nil {
+		log.Printf("HTTPS Webhook server listening on %s\n", serverTLS.Addr)
+		if err := serverTLS.ListenAndServeTLS("./cert/localhost.crt", "./cert/localhost.key"); err != nil {
 			panic(err)
 		}
 	}()

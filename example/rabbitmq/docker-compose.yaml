@@ -1,0 +1,11 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    container_name: rabbitmq
+    restart: unless-stopped
+    volumes:
+      - $PWD/enabled_plugins:/etc/rabbitmq/enabled_plugins
+    ports:
+      # - 5671:5671   # TLS-encrypted AMQP (if enabled)
+      - 5672:5672     # RabbitMQ main port (AMQP)
+      - 15672:15672   # RabbitMQ Management console
