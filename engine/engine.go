@@ -11,20 +11,40 @@ import (
 // Engine handles the dispatch and tracking of notifications
 type Engine struct {
 	OnError   func(error)
-	notifiers []notification.Notifier
+	notifiers map[string]notification.Notifier
 }
 
-func (e *Engine) AddNotifier(n notification.Notifier) {
-	e.notifiers = append(e.notifiers, n)
+func NewEngine(config *Config) *Engine {
+	return (&Engine{}).New(config)
 }
 
-func (e *Engine) Start() error {
-	fmt.Println("Engine.Start starting workers...")
+func (e *Engine) New(config *Config) *Engine {
+	if config == nil {
+		config = &Config{}
+	}
+
+	if config.OnError != nil {
+		e.OnError = config.OnError
+	}
+
+	e.notifiers = make(map[string]notification.Notifier)
+	return e
+}
+
+func (e *Engine) RegisterNotifier(n notification.Notifier) string {
+	id := n.Name()
+	e.notifiers[id] = n
+
+	return id
+}
+
+func (e *Engine) Start() {
+	// fmt.Println("Engine.Start starting workers...")
 
 	for _, n := range e.notifiers {
-		fmt.Printf("Starting worker %s\n", n.Name())
+		// fmt.Printf("Starting worker %s\n", n.Name())
 		if err := n.Connect(); err != nil {
-			fmt.Printf("Error starting worker %T: %v\n", n.Name(), err)
+			e.HandleError(fmt.Errorf("starting notifier %s: %+v", n.Name(), err))
 			continue
 		}
 
@@ -32,25 +52,21 @@ func (e *Engine) Start() error {
 			n.StartWorker()
 		}(n)
 	}
-
-	return nil
 }
 
-func (e *Engine) Stop() error {
-	fmt.Println("Engine.Stop")
+func (e *Engine) Stop() {
+	// fmt.Println("Engine.Stop")
 
 	for _, n := range e.notifiers {
-		fmt.Printf("Stopping worker %T\n", n.Name())
+		// fmt.Printf("Stopping worker %s\n", n.Name())
 		if ch := n.GetChannel(); ch != nil {
 			close(ch)
 		}
 	}
-
-	return nil
 }
 
 func (e *Engine) Dispatch(message *notification.Notification) {
-	fmt.Printf("Engine.Dispatch\n")
+	// fmt.Printf("Engine.Dispatch\n")
 	if message == nil {
 		return
 	}
@@ -59,9 +75,18 @@ func (e *Engine) Dispatch(message *notification.Notification) {
 		message.ID = uuid.New().String()
 	}
 
+	if len(message.Channels) == 0 {
+		e.dispatchAll(message)
+	} else {
+		e.dispatchChannels(message)
+	}
+}
+
+func (e *Engine) dispatchAll(message *notification.Notification) {
 	wg := sync.WaitGroup{}
 
 	for _, n := range e.notifiers {
+		fmt.Printf("Engine.dispatchAll %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
 		go func(n notification.Notifier) {
 			defer wg.Done()
@@ -70,6 +95,24 @@ func (e *Engine) Dispatch(message *notification.Notification) {
 	}
 
 	wg.Wait()
+}
+
+func (e *Engine) dispatchChannels(message *notification.Notification) {
+	wg := sync.WaitGroup{}
+	for _, c := range message.Channels {
+		n, ok := e.notifiers[c]
+		if !ok {
+			e.HandleError(fmt.Errorf("%s: channel %s not found", message.ID, c))
+			continue
+		}
+
+		fmt.Printf("Engine.dispatchChannels %s => (%s) %v\n", n.Name(), message.ID, message.Data)
+		wg.Add(1)
+		go func(n notification.Notifier) {
+			defer wg.Done()
+			n.Notify(message)
+		}(n)
+	}
 }
 
 func (e *Engine) HandleError(err error) {

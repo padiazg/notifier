@@ -1,2 +1,4 @@
 *.crt
 *.key
+cover.out
+cover.svg

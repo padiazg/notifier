@@ -7,6 +7,7 @@ type Notifier interface {
 	StartWorker()
 	GetChannel() chan *Notification
 	Notify(notification *Notification)
-	SendNotification(notification *Notification) Result
+	SendNotification(notification *Notification) *Result
 	Name() string
+	Type() string
 }
