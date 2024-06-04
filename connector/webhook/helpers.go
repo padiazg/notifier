@@ -1,7 +1,5 @@
 package webhook
 
 func NewWebhookNotifier(config *Config) *WebhookNotifier {
-	return &WebhookNotifier{
-		Config: config,
-	}
+	return (&WebhookNotifier{}).New(config)
 }

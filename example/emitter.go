@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -21,7 +22,11 @@ const (
 
 func main() {
 	var (
-		engine = e.NewEngine(nil)
+		engine = (&e.Engine{}).New(&e.Config{
+			OnError: func(err error) {
+				log.Printf("Error: %s", err.Error())
+			},
+		})
 
 		wg   sync.WaitGroup
 		done = make(chan bool)
@@ -29,7 +34,7 @@ func main() {
 	)
 
 	// add a webhook notifier
-	engine.AddNotifier(wc.NewWebhookNotifier(&wc.Config{
+	webhookId := engine.RegisterNotifier(wc.NewWebhookNotifier(&wc.Config{
 		Name:     "Webhook",
 		Endpoint: "https://localhost:4443/webhook",
 		Insecure: true,
@@ -40,11 +45,11 @@ func main() {
 	}))
 
 	// add an AMQP notifier
-	engine.AddNotifier(ac.NewAMQP10Notifier(&ac.Config{
+	amqpId := engine.RegisterNotifier(ac.NewAMQPNotifier(&ac.Config{
 		Name:      "AMQP",
-		Protocol:  ac.ProtocolAMQP10,
 		QueueName: "notifier",
 		Address:   "amqp://localhost",
+		Protocol:  ac.ProtocolAMQP10,
 	}))
 
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -52,9 +57,8 @@ func main() {
 	fmt.Println("Starting engine...")
 	engine.Start()
 
-	wg.Add(2)
-
 	// first notification
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #1")
@@ -65,6 +69,7 @@ func main() {
 	}()
 
 	// second notification
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		fmt.Println("Sending notification #2")
@@ -74,6 +79,30 @@ func main() {
 				ID   uint
 				Name string
 			}{ID: 1, Name: "complex data"},
+		})
+	}()
+
+	// only to webhook
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("Sending notification #3")
+		engine.Dispatch(&n.Notification{
+			Event:    AnotherEvent,
+			Data:     "only to webhook",
+			Channels: []string{webhookId},
+		})
+	}()
+
+	// only to mq
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("Sending notification #4")
+		engine.Dispatch(&n.Notification{
+			Event:    AnotherEvent,
+			Data:     "only to mq",
+			Channels: []string{amqpId},
 		})
 	}()
 
