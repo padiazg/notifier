@@ -33,9 +33,9 @@ func hasOnError(has bool) engineTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
 		if has {
-			assert.NotNil(t, e.OnError)
+			assert.NotNilf(t, e.OnError, "hasOnError errors expected, none produced")
 		} else {
-			assert.Nil(t, e.OnError)
+			assert.Nil(t, e.OnError, "hasOnError = [%+v], no errors expected", errors)
 		}
 	}
 }
@@ -43,7 +43,8 @@ func hasOnError(has bool) engineTestCheckFn {
 func hasNotifiers(count int) engineTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
-		assert.Equal(t, count, len(e.notifiers))
+		q := len(e.notifiers)
+		assert.Equalf(t, count, q, "hasNotifiers count=%d, expected %d", q, count)
 	}
 }
 
@@ -51,9 +52,9 @@ func hasErrors(has bool) engineTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
 		if has {
-			assert.NotEmpty(t, errors)
+			assert.NotEmptyf(t, errors, "hasErrors errors expected, none produced")
 		} else {
-			assert.Empty(t, errors)
+			assert.Emptyf(t, errors, "hasErrors = [%+v], no errors expected", errors)
 		}
 	}
 }
@@ -62,9 +63,9 @@ func hasErrorsNotification(has bool) notificationCheckFn {
 	return func(t *testing.T, e *Engine, n *notification.Notification) {
 		t.Helper()
 		if has {
-			assert.NotEmpty(t, errors)
+			assert.NotEmptyf(t, errors, "hasErrorsNotification errors expected, none produced")
 		} else {
-			assert.Empty(t, errors)
+			assert.Emptyf(t, errors, "hasErrorsNotification = [%+v], no errors expected", errors)
 		}
 	}
 }
@@ -74,7 +75,7 @@ func notificationReceived() notificationCheckFn {
 		t.Helper()
 		if len(n.Channels) == 0 {
 			for _, nt := range e.notifiers {
-				assert.True(t, nt.(*dummy.DummyNotifier).Exists(n))
+				assert.Truef(t, nt.(*dummy.DummyNotifier).Exists(n), "notificationReceived not found, expected %+v", n)
 			}
 		} else {
 			for _, name := range n.Channels {
@@ -83,7 +84,7 @@ func notificationReceived() notificationCheckFn {
 					t.Errorf("%s channel not found", name)
 					continue
 				}
-				assert.True(t, nt.(*dummy.DummyNotifier).Exists(n))
+				assert.Truef(t, nt.(*dummy.DummyNotifier).Exists(n), "notificationReceived not found, expected %+v", n)
 			}
 		}
 	}
@@ -95,9 +96,9 @@ func notificationHasId() notificationCheckFn {
 		t.Helper()
 		for _, nt := range e.notifiers {
 			data := nt.(*dummy.DummyNotifier).First()
-			assert.NotNil(t, data)
+			assert.NotNilf(t, data, "notificationHasId not found, expected at least one")
 			if data != nil {
-				assert.NotEmpty(t, data.ID)
+				assert.NotEmptyf(t, data.ID, "notificationHasId ID is empty, expected not empty")
 			}
 		}
 	}
@@ -358,8 +359,9 @@ func TestEngine_Dispatch(t *testing.T) {
 			}
 
 			e.Start()
+			time.Sleep(100 * time.Millisecond)
 			e.Dispatch(tt.message)
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			e.Stop()
 
 			for _, c := range tt.checks {
