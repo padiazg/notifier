@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 )
 
-func RamdomId8() string {
+var randRead = rand.Read
+
+func RandomId8() string {
 	var bytes = make([]byte, 8)
 
-	if _, err := rand.Read(bytes); err != nil {
+	if _, err := randRead(bytes); err != nil {
 		panic(err)
 	}
 
