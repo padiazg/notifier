@@ -27,7 +27,7 @@ func (n *AMQP10Notifier) New(config *Config) *AMQP10Notifier {
 	}
 
 	if config.Name == "" {
-		config.Name = n.Type() + utils.RamdomId8()
+		config.Name = n.Type() + utils.RandomId8()
 	}
 
 	config.Protocol = ProtocolAMQP10

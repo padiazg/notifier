@@ -23,7 +23,7 @@ func (n *AMQP09Notifier) New(config *Config) *AMQP09Notifier {
 	}
 
 	if config.Name == "" {
-		config.Name = n.Type() + utils.RamdomId8()
+		config.Name = n.Type() + utils.RandomId8()
 	}
 
 	config.Protocol = ProtocolAMQP09

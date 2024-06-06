@@ -2,6 +2,7 @@ package dummy
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/padiazg/notifier/notification"
 )
@@ -15,6 +16,20 @@ type DummyNotifier struct {
 	*Config
 	Channel chan *notification.Notification
 	in      []*notification.Notification
+	lock    *sync.RWMutex
+}
+
+func New(config *Config) *DummyNotifier {
+	dn := &DummyNotifier{
+		in:   make([]*notification.Notification, 0),
+		lock: &sync.RWMutex{},
+	}
+
+	if config != nil {
+		dn.Config = config
+	}
+
+	return dn
 }
 
 func (d *DummyNotifier) Connect() error {
@@ -49,7 +64,9 @@ func (d *DummyNotifier) Notify(payload *notification.Notification) {
 }
 
 func (d *DummyNotifier) SendNotification(message *notification.Notification) *notification.Result {
+	d.lock.Lock()
 	d.in = append(d.in, message)
+	defer d.lock.Unlock()
 
 	res, ok := message.Data.(*notification.Result)
 	if !ok {
@@ -63,6 +80,8 @@ func (d *DummyNotifier) Type() string                     { return "dummy" }
 func (d *DummyNotifier) In() []*notification.Notification { return d.in }
 
 func (d *DummyNotifier) Exists(n *notification.Notification) bool {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	for _, data := range d.in {
 		if data == n {
 			return true
@@ -72,6 +91,8 @@ func (d *DummyNotifier) Exists(n *notification.Notification) bool {
 }
 
 func (d *DummyNotifier) First() *notification.Notification {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	for _, data := range d.in {
 		return data
 	}

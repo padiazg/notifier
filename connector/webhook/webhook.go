@@ -16,13 +16,17 @@ type WebhookNotifier struct {
 	Channel chan *notification.Notification
 }
 
+func NewWebhookNotifier(config *Config) *WebhookNotifier {
+	return (&WebhookNotifier{}).New(config)
+}
+
 func (n *WebhookNotifier) New(config *Config) *WebhookNotifier {
 	if config == nil {
 		config = &Config{}
 	}
 
 	if config.Name == "" {
-		config.Name = n.Type() + utils.RamdomId8()
+		config.Name = n.Type() + utils.RandomId8()
 	}
 
 	n.Config = config
