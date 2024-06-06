@@ -1,0 +1,101 @@
+package engine
+
+import (
+	"testing"
+
+	"github.com/padiazg/notifier/connector/dummy"
+	"github.com/padiazg/notifier/notification"
+	"github.com/stretchr/testify/assert"
+)
+
+type engineTestCheckFn func(*testing.T, *Engine)
+type notificationCheckFn func(*testing.T, *Engine, *notification.Notification)
+
+var (
+	checkEngine        = func(fns ...engineTestCheckFn) []engineTestCheckFn { return fns }
+	checkNotifications = func(fns ...notificationCheckFn) []notificationCheckFn { return fns }
+	errors             []error
+)
+
+func registerError(err error) {
+	errors = append(errors, err)
+}
+
+func clearErrors() {
+	errors = []error{}
+}
+
+func hasOnError(has bool) engineTestCheckFn {
+	return func(t *testing.T, e *Engine) {
+		t.Helper()
+		if has {
+			assert.NotNilf(t, e.OnError, "hasOnError errors expected, none produced")
+		} else {
+			assert.Nil(t, e.OnError, "hasOnError = [%+v], no errors expected", errors)
+		}
+	}
+}
+
+func hasNotifiers(count int) engineTestCheckFn {
+	return func(t *testing.T, e *Engine) {
+		t.Helper()
+		q := len(e.notifiers)
+		assert.Equalf(t, count, q, "hasNotifiers count=%d, expected %d", q, count)
+	}
+}
+
+func hasErrors(has bool) engineTestCheckFn {
+	return func(t *testing.T, e *Engine) {
+		t.Helper()
+		if has {
+			assert.NotEmptyf(t, errors, "hasErrors errors expected, none produced")
+		} else {
+			assert.Emptyf(t, errors, "hasErrors = [%+v], no errors expected", errors)
+		}
+	}
+}
+
+func hasErrorsNotification(has bool) notificationCheckFn {
+	return func(t *testing.T, e *Engine, n *notification.Notification) {
+		t.Helper()
+		if has {
+			assert.NotEmptyf(t, errors, "hasErrorsNotification errors expected, none produced")
+		} else {
+			assert.Emptyf(t, errors, "hasErrorsNotification = [%+v], no errors expected", errors)
+		}
+	}
+}
+
+func notificationReceived() notificationCheckFn {
+	return func(t *testing.T, e *Engine, n *notification.Notification) {
+		t.Helper()
+		if len(n.Channels) == 0 {
+			for _, nt := range e.notifiers {
+				assert.Truef(t, nt.(*dummy.DummyNotifier).Exists(n), "notificationReceived not found, expected %+v", n)
+			}
+		} else {
+			for _, name := range n.Channels {
+				nt, ok := e.notifiers[name]
+				if !ok {
+					t.Errorf("%s channel not found", name)
+					continue
+				}
+				assert.Truef(t, nt.(*dummy.DummyNotifier).Exists(n), "notificationReceived not found, expected %+v", n)
+			}
+		}
+	}
+}
+
+// call this checker with a single notifier and a single notification
+func notificationHasId() notificationCheckFn {
+	return func(t *testing.T, e *Engine, n *notification.Notification) {
+		t.Helper()
+		for _, nt := range e.notifiers {
+			data := nt.(*dummy.DummyNotifier).First()
+			assert.NotNilf(t, data, "notificationHasId not found, expected at least one")
+			if data != nil {
+				assert.NotEmptyf(t, data.ID, "notificationHasId ID is empty, expected not empty")
+			}
+		}
+	}
+}
