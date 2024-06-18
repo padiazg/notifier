@@ -2,14 +2,17 @@ package dummy
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 
 	"github.com/padiazg/notifier/notification"
 )
 
 type Config struct {
-	ConnectError error
 	Name         string
+	Logger       *log.Logger
+	ConnectError error
 }
 
 type DummyNotifier struct {
@@ -20,53 +23,71 @@ type DummyNotifier struct {
 }
 
 func New(config *Config) *DummyNotifier {
-	dn := &DummyNotifier{
+	n := &DummyNotifier{
 		in:   make([]*notification.Notification, 0),
 		lock: &sync.RWMutex{},
 	}
 
-	if config != nil {
-		dn.Config = config
+	if config == nil {
+		config = &Config{}
 	}
 
-	return dn
+	if config.Name == "" {
+		config.Name = "dummya0b1c3d4"
+	}
+
+	n.Config = config
+
+	n.Channel = make(chan *notification.Notification)
+
+	if config.Logger == nil {
+		config.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	}
+
+	return n
 }
 
-func (d *DummyNotifier) Connect() error {
-	if d.ConnectError != nil {
-		return d.ConnectError
+func (n *DummyNotifier) Connect() error {
+	if n.ConnectError != nil {
+		return n.ConnectError
 	}
 
 	return nil
 }
 
-func (d *DummyNotifier) Close() error {
+func (n *DummyNotifier) Close() error {
 	return nil
 }
 
-func (d *DummyNotifier) StartWorker() {
-	d.Channel = make(chan *notification.Notification)
-	for notification := range d.Channel {
-		d.SendNotification(notification)
+func (n *DummyNotifier) StartWorker() {
+	n.Channel = make(chan *notification.Notification)
+	for notification := range n.Channel {
+		n.SendNotification(notification)
 	}
 }
 
-func (d *DummyNotifier) GetChannel() chan *notification.Notification {
-	return d.Channel
+func (n *DummyNotifier) GetChannel() chan *notification.Notification {
+	return n.Channel
 }
 
-func (d *DummyNotifier) Notify(payload *notification.Notification) {
-	if d.Channel == nil || payload == nil {
+func (n *DummyNotifier) Notify(payload *notification.Notification) {
+	if n.Channel == nil {
+		n.Logger.Print("channel is nil")
 		return
 	}
 
-	d.Channel <- payload
+	if payload == nil {
+		n.Logger.Print("payload is nil")
+		return
+	}
+
+	n.Channel <- payload
 }
 
-func (d *DummyNotifier) SendNotification(message *notification.Notification) *notification.Result {
-	d.lock.Lock()
-	d.in = append(d.in, message)
-	defer d.lock.Unlock()
+func (n *DummyNotifier) SendNotification(message *notification.Notification) *notification.Result {
+	n.lock.Lock()
+	n.in = append(n.in, message)
+	defer n.lock.Unlock()
 
 	res, ok := message.Data.(*notification.Result)
 	if !ok {
@@ -75,25 +96,25 @@ func (d *DummyNotifier) SendNotification(message *notification.Notification) *no
 	return res
 }
 
-func (d *DummyNotifier) Name() string                     { return d.Config.Name }
-func (d *DummyNotifier) Type() string                     { return "dummy" }
-func (d *DummyNotifier) In() []*notification.Notification { return d.in }
+func (n *DummyNotifier) Name() string                     { return n.Config.Name }
+func (n *DummyNotifier) Type() string                     { return "dummy" }
+func (n *DummyNotifier) In() []*notification.Notification { return n.in }
 
-func (d *DummyNotifier) Exists(n *notification.Notification) bool {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-	for _, data := range d.in {
-		if data == n {
+func (n *DummyNotifier) Exists(item *notification.Notification) bool {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	for _, data := range n.in {
+		if data == item {
 			return true
 		}
 	}
 	return false
 }
 
-func (d *DummyNotifier) First() *notification.Notification {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-	for _, data := range d.in {
+func (n *DummyNotifier) First() *notification.Notification {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	for _, data := range n.in {
 		return data
 	}
 	return nil

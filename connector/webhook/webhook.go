@@ -5,18 +5,37 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/padiazg/notifier/notification"
 	"github.com/padiazg/notifier/utils"
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+type Config struct {
+	Name     string
+	Logger   *log.Logger
+	Endpoint string
+	Insecure bool
+	Headers  map[string]string
+}
+
 type WebhookNotifier struct {
 	*Config
 	Channel chan *notification.Notification
+	client  HTTPClient
 }
 
-func NewWebhookNotifier(config *Config) *WebhookNotifier {
+var (
+	jsonMarshal    = json.Marshal
+	httpNewRequest = http.NewRequest
+)
+
+func New(config *Config) *WebhookNotifier {
 	return (&WebhookNotifier{}).New(config)
 }
 
@@ -30,6 +49,8 @@ func (n *WebhookNotifier) New(config *Config) *WebhookNotifier {
 	}
 
 	n.Config = config
+
+	n.Channel = make(chan *notification.Notification)
 
 	return n
 }
@@ -60,7 +81,13 @@ func (n *WebhookNotifier) Close() error {
 // Notify sends a notification to worker
 func (n *WebhookNotifier) Notify(payload *notification.Notification) {
 	// fmt.Printf("WebhookNotifier.Notify: %v\n", payload.ID)
-	if n.Channel == nil || payload == nil {
+	if n.Channel == nil {
+		n.Logger.Print("channel is nil")
+		return
+	}
+
+	if payload == nil {
+		n.Logger.Print("payload is nil")
 		return
 	}
 
@@ -70,7 +97,6 @@ func (n *WebhookNotifier) Notify(payload *notification.Notification) {
 // NewWebhookNotifier creates a new notifier for webhooks
 func (n *WebhookNotifier) StartWorker() {
 	// fmt.Println("WebhookNotifier.StartWorker")
-	n.Channel = make(chan *notification.Notification)
 	for notification := range n.Channel {
 		n.SendNotification(notification)
 	}
@@ -83,13 +109,13 @@ func (n *WebhookNotifier) SendNotification(message *notification.Notification) *
 	// fmt.Printf("WebhookNotifier.sendNotification: %v\n", message)
 
 	// Serialize the notification data to JSON
-	payload, err := json.Marshal(message)
+	payload, err := jsonMarshal(message)
 	if err != nil {
 		return &notification.Result{Success: false, Error: err}
 	}
 
 	// Send the POST request to the webhook endpoint
-	r, err := http.NewRequest(http.MethodPost, n.Endpoint, bytes.NewBuffer(payload))
+	r, err := httpNewRequest(http.MethodPost, n.Endpoint, bytes.NewBuffer(payload))
 	if err != nil {
 		return &notification.Result{Success: false, Error: err}
 	}
@@ -101,13 +127,7 @@ func (n *WebhookNotifier) SendNotification(message *notification.Notification) *
 		r.Header.Set(k, v)
 	}
 
-	client := &http.Client{}
-
-	if n.Insecure {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-	}
+	client := n.getClient()
 
 	resp, err := client.Do(r)
 	if err != nil {
@@ -127,4 +147,19 @@ func (n *WebhookNotifier) SendNotification(message *notification.Notification) *
 	// }
 
 	return &notification.Result{Success: true}
+}
+
+func (n *WebhookNotifier) getClient() HTTPClient {
+	if n.client != nil {
+		return n.client
+	}
+
+	n.client = &http.Client{}
+	if n.Insecure {
+		n.client.(*http.Client).Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	return n.client
 }
