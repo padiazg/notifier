@@ -150,7 +150,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 		{
 			name: "one-notifier",
 			notifiers: []notification.Notifier{
-				webhook.NewWebhookNotifier(&webhook.Config{}),
+				webhook.New(&webhook.Config{}),
 			},
 			checks: checkEngine(
 				hasNotifiers(1),
@@ -159,7 +159,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 		{
 			name: "two-notifiers",
 			notifiers: []notification.Notifier{
-				webhook.NewWebhookNotifier(&webhook.Config{}),
+				webhook.New(&webhook.Config{}),
 				amqp.NewAMQPNotifier(&amqp.Config{Protocol: amqp.ProtocolAMQP10}),
 			},
 			checks: checkEngine(
