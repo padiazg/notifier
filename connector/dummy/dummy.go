@@ -10,16 +10,16 @@ import (
 )
 
 type Config struct {
-	Name         string
 	Logger       *log.Logger
 	ConnectError error
+	Name         string
 }
 
 type DummyNotifier struct {
+	lock *sync.RWMutex
 	*Config
 	Channel chan *notification.Notification
 	in      []*notification.Notification
-	lock    *sync.RWMutex
 }
 
 func New(config *Config) *DummyNotifier {
@@ -93,6 +93,7 @@ func (n *DummyNotifier) SendNotification(message *notification.Notification) *no
 	if !ok {
 		res = &notification.Result{Error: fmt.Errorf("unexpected type: %T", message.Data)}
 	}
+
 	return res
 }
 
@@ -102,20 +103,25 @@ func (n *DummyNotifier) In() []*notification.Notification { return n.in }
 
 func (n *DummyNotifier) Exists(item *notification.Notification) bool {
 	n.lock.Lock()
+
 	defer n.lock.Unlock()
+
 	for _, data := range n.in {
 		if data == item {
 			return true
 		}
 	}
+
 	return false
 }
 
 func (n *DummyNotifier) First() *notification.Notification {
 	n.lock.Lock()
 	defer n.lock.Unlock()
+
 	for _, data := range n.in {
 		return data
 	}
+
 	return nil
 }

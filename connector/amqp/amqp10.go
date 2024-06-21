@@ -50,55 +50,46 @@ func (n *AMQP10Notifier) GetChannel() chan *notification.Notification {
 }
 
 func (n *AMQP10Notifier) Connect() error {
-	// fmt.Println("AMQP10Notifier.Connect")
 	var err error
 
 	// create a context
 	n.ctx = context.TODO()
 
 	// create a connection
-	// fmt.Println("AMQP10Notifier.StartWorker Dial")
 	n.conn, err = amqp.Dial(n.ctx, n.Address, nil)
 	if err != nil {
-		return fmt.Errorf("dialing AMQP server: %v", err)
+		return fmt.Errorf("dialing AMQP server: %w", err)
 	}
 
 	// create a session
-	// fmt.Println("AMQP10Notifier.StartWorker NewSession")
 	n.session, err = n.conn.NewSession(n.ctx, nil)
 	if err != nil {
-		return fmt.Errorf("creating AMQP session: %v", err)
+		return fmt.Errorf("creating AMQP session: %w", err)
 	}
 
 	// create a sender
-	// fmt.Println("AMQP10Notifier.StartWorker NewSender")
 	n.sender, err = n.session.NewSender(n.ctx, n.QueueName, &amqp.SenderOptions{
 		TargetDurability: amqp.DurabilityUnsettledState,
 	})
 	if err != nil {
-		return fmt.Errorf("creating sender link: %v", err)
+		return fmt.Errorf("creating sender link: %w", err)
 	}
 
 	return nil
 }
 
 func (n *AMQP10Notifier) Close() error {
-	// fmt.Println("AMQP10Notifier.Close")
 	return n.conn.Close()
 }
 
 func (n *AMQP10Notifier) Notify(payload *notification.Notification) {
-	// fmt.Printf("AMQP10Notifier.Notify: %v channel:%v\n", payload.ID, n.Channel)
 	if n.Channel == nil || payload == nil {
 		return
 	}
 	n.Channel <- payload
-	// fmt.Printf("AMQP10Notifier.Notify: sent\n")
 }
 
 func (n *AMQP10Notifier) StartWorker() {
-	// fmt.Println("AMQP10Notifier.StartWorker")
-
 	// create a channel
 	n.Channel = make(chan *notification.Notification)
 
@@ -113,16 +104,14 @@ func (n *AMQP10Notifier) StartWorker() {
 	if err := n.Close(); err != nil {
 		fmt.Printf("closing sender link: %v", err) // TODO: implement logger or pass to error handler
 	}
-
-	// fmt.Printf("AMQP10 notifier stopped\n")
 }
 
 func (n *AMQP10Notifier) SendNotification(message *notification.Notification) *notification.Result {
-	// fmt.Println("AMQP10Notifier.SendNotification")
 	var (
 		ctx, cancel = context.WithTimeout(n.ctx, 3*time.Second)
 		err         error
 	)
+
 	defer cancel()
 
 	// Serialize the notification data to JSON
