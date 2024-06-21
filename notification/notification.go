@@ -13,6 +13,6 @@ type Notification struct {
 
 // Result represents the result of sending a notification
 type Result struct {
-	Success bool
 	Error   error
+	Success bool
 }

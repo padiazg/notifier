@@ -28,6 +28,7 @@ func (e *Engine) New(config *Config) *Engine {
 	}
 
 	e.notifiers = make(map[string]notification.Notifier)
+
 	return e
 }
 
@@ -39,10 +40,7 @@ func (e *Engine) RegisterNotifier(n notification.Notifier) string {
 }
 
 func (e *Engine) Start() {
-	// fmt.Println("Engine.Start starting workers...")
-
 	for _, n := range e.notifiers {
-		// fmt.Printf("Starting worker %s\n", n.Name())
 		if err := n.Connect(); err != nil {
 			e.HandleError(fmt.Errorf("starting notifier %s: %+v", n.Name(), err))
 			continue
@@ -55,10 +53,7 @@ func (e *Engine) Start() {
 }
 
 func (e *Engine) Stop() {
-	// fmt.Println("Engine.Stop")
-
 	for _, n := range e.notifiers {
-		// fmt.Printf("Stopping worker %s\n", n.Name())
 		if ch := n.GetChannel(); ch != nil {
 			close(ch)
 		}
@@ -66,7 +61,6 @@ func (e *Engine) Stop() {
 }
 
 func (e *Engine) Dispatch(message *notification.Notification) {
-	// fmt.Printf("Engine.Dispatch\n")
 	if message == nil {
 		return
 	}
@@ -88,6 +82,7 @@ func (e *Engine) dispatchAll(message *notification.Notification) {
 	for _, n := range e.notifiers {
 		fmt.Printf("Engine.dispatchAll %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
+
 		go func(n notification.Notifier) {
 			defer wg.Done()
 			n.Notify(message)
@@ -99,6 +94,7 @@ func (e *Engine) dispatchAll(message *notification.Notification) {
 
 func (e *Engine) dispatchChannels(message *notification.Notification) {
 	wg := sync.WaitGroup{}
+
 	for _, c := range message.Channels {
 		n, ok := e.notifiers[c]
 		if !ok {
@@ -108,6 +104,7 @@ func (e *Engine) dispatchChannels(message *notification.Notification) {
 
 		fmt.Printf("Engine.dispatchChannels %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
+
 		go func(n notification.Notifier) {
 			defer wg.Done()
 			n.Notify(message)

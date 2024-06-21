@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/padiazg/notifier/notification"
-	n "github.com/padiazg/notifier/notification"
 	"github.com/padiazg/notifier/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -14,7 +13,7 @@ type AMQP09Notifier struct {
 	*Config
 	conn *amqp.Connection
 	// channel *amqp.Channel
-	Channel chan *n.Notification
+	Channel chan *notification.Notification
 }
 
 func (n *AMQP09Notifier) New(config *Config) *AMQP09Notifier {
@@ -50,27 +49,24 @@ func (n *AMQP09Notifier) Connect() error {
 
 	n.conn, err = amqp.Dial(n.Address)
 	if err != nil {
-		return fmt.Errorf("dialing AMQP server: %v", err)
+		return fmt.Errorf("dialing AMQP server: %w", err)
 	}
 
 	return nil
 }
 
 func (n *AMQP09Notifier) StartWorker() {
-	// fmt.Println("AMQP10Notifier.StartWorker")
 	n.Channel = make(chan *notification.Notification)
 	for notification := range n.Channel {
 		n.SendNotification(notification)
 	}
-
-	// fmt.Printf("AMQP10 notifier stopped\n")
 }
 
 func (n *AMQP09Notifier) Notify(payload *notification.Notification) {
 	n.Channel <- payload
 }
 
-func (n *AMQP09Notifier) SendNotification(payload *n.Notification) *notification.Result {
+func (n *AMQP09Notifier) SendNotification(payload *notification.Notification) *notification.Result {
 	// TODO: implement!
 	return &notification.Result{Success: false}
 }
