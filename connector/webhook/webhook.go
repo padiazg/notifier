@@ -17,11 +17,11 @@ type HTTPClient interface {
 }
 
 type Config struct {
-	Name     string
 	Logger   *log.Logger
+	Headers  map[string]string
+	Name     string
 	Endpoint string
 	Insecure bool
-	Headers  map[string]string
 }
 
 type WebhookNotifier struct {
@@ -69,18 +69,15 @@ func (n *WebhookNotifier) GetChannel() chan *notification.Notification {
 }
 
 func (n *WebhookNotifier) Connect() error {
-	// fmt.Println("WebhookNotifier.Connect")
 	return nil
 }
 
 func (n *WebhookNotifier) Close() error {
-	// fmt.Println("WebhookNotifier.Close")
 	return nil
 }
 
 // Notify sends a notification to worker
 func (n *WebhookNotifier) Notify(payload *notification.Notification) {
-	// fmt.Printf("WebhookNotifier.Notify: %v\n", payload.ID)
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")
 		return
@@ -96,18 +93,13 @@ func (n *WebhookNotifier) Notify(payload *notification.Notification) {
 
 // NewWebhookNotifier creates a new notifier for webhooks
 func (n *WebhookNotifier) StartWorker() {
-	// fmt.Println("WebhookNotifier.StartWorker")
 	for notification := range n.Channel {
 		n.SendNotification(notification)
 	}
-
-	// fmt.Printf("Webhook notifier stopped\n")
 }
 
 // SendNotification sends a notification to the webhook
 func (n *WebhookNotifier) SendNotification(message *notification.Notification) *notification.Result {
-	// fmt.Printf("WebhookNotifier.sendNotification: %v\n", message)
-
 	// Serialize the notification data to JSON
 	payload, err := jsonMarshal(message)
 	if err != nil {
