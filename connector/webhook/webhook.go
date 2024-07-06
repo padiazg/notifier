@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -26,14 +27,18 @@ type Config struct {
 
 type WebhookNotifier struct {
 	*Config
-	Channel chan *notification.Notification
-	client  HTTPClient
+	Channel        chan *notification.Notification
+	client         HTTPClient
+	jsonMarshal    func(v any) ([]byte, error)
+	httpNewRequest func(method string, url string, body io.Reader) (*http.Request, error)
 }
 
-var (
-	jsonMarshal    = json.Marshal
-	httpNewRequest = http.NewRequest
-)
+// var (
+// 	jsonMarshal    = json.Marshal
+// 	httpNewRequest = http.NewRequest
+// )
+
+var _ notification.Notifier = (*WebhookNotifier)(nil)
 
 func New(config *Config) *WebhookNotifier {
 	return (&WebhookNotifier{}).New(config)
@@ -49,8 +54,9 @@ func (n *WebhookNotifier) New(config *Config) *WebhookNotifier {
 	}
 
 	n.Config = config
-
 	n.Channel = make(chan *notification.Notification)
+	n.jsonMarshal = json.Marshal
+	n.httpNewRequest = http.NewRequest
 
 	return n
 }
@@ -63,17 +69,27 @@ func (n *WebhookNotifier) Name() string {
 	return n.Config.Name
 }
 
-// GetChannel returns the channel used by the worker
-func (n *WebhookNotifier) GetChannel() chan *notification.Notification {
-	return n.Channel
-}
-
 func (n *WebhookNotifier) Connect() error {
 	return nil
 }
 
 func (n *WebhookNotifier) Close() error {
 	return nil
+}
+
+// Run starts receiving notifications
+func (n *WebhookNotifier) Run() {
+	for notification := range n.Channel {
+		r := n.Deliver(notification)
+		if !r.Success {
+			n.Logger.Printf("%s: %+v", n.Name(), r)
+		}
+	}
+}
+
+// GetChannel returns the channel used by the worker
+func (n *WebhookNotifier) GetChannel() chan *notification.Notification {
+	return n.Channel
 }
 
 // Notify sends a notification to worker
@@ -91,23 +107,16 @@ func (n *WebhookNotifier) Notify(payload *notification.Notification) {
 	n.Channel <- payload
 }
 
-// NewWebhookNotifier creates a new notifier for webhooks
-func (n *WebhookNotifier) StartWorker() {
-	for notification := range n.Channel {
-		n.SendNotification(notification)
-	}
-}
-
-// SendNotification sends a notification to the webhook
-func (n *WebhookNotifier) SendNotification(message *notification.Notification) *notification.Result {
+// Deliver sends a notification to the webhook
+func (n *WebhookNotifier) Deliver(message *notification.Notification) *notification.Result {
 	// Serialize the notification data to JSON
-	payload, err := jsonMarshal(message)
+	payload, err := n.jsonMarshal(message)
 	if err != nil {
 		return &notification.Result{Success: false, Error: err}
 	}
 
 	// Send the POST request to the webhook endpoint
-	r, err := httpNewRequest(http.MethodPost, n.Endpoint, bytes.NewBuffer(payload))
+	r, err := n.httpNewRequest(http.MethodPost, n.Endpoint, bytes.NewBuffer(payload))
 	if err != nil {
 		return &notification.Result{Success: false, Error: err}
 	}

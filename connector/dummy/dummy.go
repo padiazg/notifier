@@ -22,6 +22,8 @@ type DummyNotifier struct {
 	in      []*notification.Notification
 }
 
+var _ notification.Notifier = (*DummyNotifier)(nil)
+
 func New(config *Config) *DummyNotifier {
 	n := &DummyNotifier{
 		in:   make([]*notification.Notification, 0),
@@ -47,6 +49,9 @@ func New(config *Config) *DummyNotifier {
 	return n
 }
 
+func (n *DummyNotifier) Type() string { return "dummy" }
+func (n *DummyNotifier) Name() string { return n.Config.Name }
+
 func (n *DummyNotifier) Connect() error {
 	if n.ConnectError != nil {
 		return n.ConnectError
@@ -59,10 +64,13 @@ func (n *DummyNotifier) Close() error {
 	return nil
 }
 
-func (n *DummyNotifier) StartWorker() {
+func (n *DummyNotifier) Run() {
 	n.Channel = make(chan *notification.Notification)
 	for notification := range n.Channel {
-		n.SendNotification(notification)
+		r := n.Deliver(notification)
+		if !r.Success {
+			n.Logger.Printf("%s: %+v", n.Name(), r)
+		}
 	}
 }
 
@@ -84,11 +92,12 @@ func (n *DummyNotifier) Notify(payload *notification.Notification) {
 	n.Channel <- payload
 }
 
-func (n *DummyNotifier) SendNotification(message *notification.Notification) *notification.Result {
+func (n *DummyNotifier) Deliver(message *notification.Notification) *notification.Result {
 	n.lock.Lock()
 	n.in = append(n.in, message)
 	defer n.lock.Unlock()
 
+	// to trigger a deliver error assign message.Data a value different than notification.Result
 	res, ok := message.Data.(*notification.Result)
 	if !ok {
 		res = &notification.Result{Error: fmt.Errorf("unexpected type: %T", message.Data)}
@@ -97,8 +106,6 @@ func (n *DummyNotifier) SendNotification(message *notification.Notification) *no
 	return res
 }
 
-func (n *DummyNotifier) Name() string                     { return n.Config.Name }
-func (n *DummyNotifier) Type() string                     { return "dummy" }
 func (n *DummyNotifier) In() []*notification.Notification { return n.in }
 
 func (n *DummyNotifier) Exists(item *notification.Notification) bool {

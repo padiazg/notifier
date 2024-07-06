@@ -20,38 +20,41 @@ func TestNew(t *testing.T) {
 		logger = log.New(&buf, "test-logger", log.LstdFlags)
 
 		checkConfigSet = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, n notification.Notifier) {
+			return func(t *testing.T, np notification.Notifier) {
 				t.Helper()
-				dn, _ := n.(*DummyNotifier)
-				assert.NotNilf(t, dn.Config, "configSet Config expexted to be not nil")
+				n, _ := np.(*DummyNotifier)
+				assert.NotNilf(t, n.Config, "configSet Config expexted to be not nil")
 			}
 		}
 
 		checkConfigName = func(name string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, n notification.Notifier) {
+			return func(t *testing.T, np notification.Notifier) {
 				t.Helper()
-				dn, _ := n.(*DummyNotifier)
+				n, _ := np.(*DummyNotifier)
 				if name != "" {
-					assert.Equalf(t, name, dn.Config.Name, "checkConfigName = %s, expected %s", dn.Config.Name, name)
+					assert.Equalf(t, name, n.Config.Name, "checkConfigName = %s, expected %s", n.Config.Name, name)
 					return
 				}
 
 				var (
-					test = dn.Type() + `[abcdef0-9]{8}`
+					test = n.Type() + `[abcdef0-9]{8}`
 					re   = regexp.MustCompile(test)
 				)
 
-				assert.Regexpf(t, re, dn.Config.Name, "checkConfigName = %v doesn't appply for %v", dn.Config.Name, test)
+				assert.Regexpf(t, re, n.Config.Name, "checkConfigName = %v doesn't appply for %v", n.Config.Name, test)
 			}
 		}
 
 		checkLogger = func(mark string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, n notification.Notifier) {
-				dn, _ := n.(*DummyNotifier)
+			return func(t *testing.T, np notification.Notifier) {
+				t.Helper()
+				n, _ := np.(*DummyNotifier)
 
-				dn.Logger.Printf(mark)
-				if got := buf.String(); !strings.Contains(got, mark) {
-					t.Errorf("Notify log = %s, expected %s", got, mark)
+				if assert.NotEmptyf(t, n.Logger, "checkLogger Logger is empty, expected to be set") {
+					n.Logger.Printf(mark)
+					if got := buf.String(); !strings.Contains(got, mark) {
+						t.Errorf("checkLogger log = %s, expected %s", got, mark)
+					}
 				}
 			}
 		}
@@ -99,9 +102,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestDummyNotifier_Type(t *testing.T) {
-	d := New(&Config{})
-	got := d.Type()
-	assert.Equalf(t, got, "dummy", "DummyNotifier.Type() = %v, want dummy", got)
+	var (
+		n    = New(&Config{})
+		got  = n.Type()
+		want = "dummy"
+	)
+
+	assert.Equalf(t, got, want, "Type() = %v, want %s", got, want)
 }
 
 func TestDummyNotifier_Connect(t *testing.T) {
@@ -130,8 +137,8 @@ func TestDummyNotifier_Connect(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			d := New(tt.config)
-			if err := d.Connect(); (err != nil) != tt.wantErr {
+			n := New(tt.config)
+			if err := n.Connect(); (err != nil) != tt.wantErr {
 				t.Errorf("DummyNotifier.Connect() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -139,8 +146,8 @@ func TestDummyNotifier_Connect(t *testing.T) {
 }
 
 func TestDummyNotifier_Close(t *testing.T) {
-	d := New(&Config{Name: "dummy-01"})
-	err := d.Close()
+	n := New(&Config{Name: "dummy-01"})
+	err := n.Close()
 	assert.NoErrorf(t, err, "Close error = %+v, no error expected", err)
 }
 
@@ -167,13 +174,11 @@ func TestDummyNotifier_Name(t *testing.T) {
 }
 
 func TestDummyNotifier_GetChannel(t *testing.T) {
-	d := New(&Config{})
-	go d.StartWorker()
-	time.Sleep(100 * time.Millisecond)
-	got := d.GetChannel()
+	n := New(&Config{})
+	got := n.GetChannel()
 	assert.NotNilf(t, got, "DummyNotifier.GetChannel() = nil, want not nil")
-	time.Sleep(100 * time.Millisecond)
-	defer func() { close(d.Channel) }()
+	time.Sleep(10 * time.Millisecond)
+	defer func() { close(n.Channel) }()
 }
 
 func TestDummyNotifier_Notify(t *testing.T) {
@@ -222,16 +227,14 @@ func TestDummyNotifier_Notify(t *testing.T) {
 				}
 			}()
 
-			dn := &DummyNotifier{
+			n := &DummyNotifier{
 				Config:  &Config{Logger: logger},
 				Channel: tt.channel,
 			}
 
-			dn.Notify(tt.payload)
+			n.Notify(tt.payload)
 
-			if gotLog := buf.String(); !strings.Contains(gotLog, tt.wantLog) {
-				t.Errorf("Notify log = %s, expected %s", gotLog, tt.wantLog)
-			}
+			notification.CheckLoggerError(&buf, tt.wantLog)
 
 			if tt.wantValue {
 				select {
@@ -243,6 +246,65 @@ func TestDummyNotifier_Notify(t *testing.T) {
 				default:
 					t.Errorf("Notify payload is empty, expected %+v", tt.payload)
 				}
+			}
+
+			buf.Reset()
+		})
+	}
+}
+
+func TestWebhookNotifier_Run(t *testing.T) {
+	var (
+		buf    bytes.Buffer
+		logger = log.New(&buf, "test:", log.LstdFlags)
+
+		tests = []struct {
+			name    string
+			config  *Config
+			message *notification.Notification
+			checks  []notification.TestCheckNotifierFn
+		}{
+			{
+				name:   "fail",
+				config: &Config{Logger: logger},
+				message: &notification.Notification{
+					Data: "must-fail",
+				},
+				checks: []notification.TestCheckNotifierFn{
+					notification.CheckLoggerError(&buf, "unexpected type"),
+				},
+			},
+			{
+				name:   "success",
+				config: &Config{Logger: logger},
+				message: &notification.Notification{
+					Data: &notification.Result{Success: true},
+				},
+				checks: []notification.TestCheckNotifierFn{
+					notification.CheckLoggerError(&buf, ""),
+				},
+			},
+		}
+	)
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			n := New(tt.config)
+
+			// start the runner
+			go n.Run()
+			time.Sleep(10 * time.Millisecond)
+
+			// send a single message and close the channel
+			go func() {
+				n.Channel <- tt.message
+				close(n.Channel)
+			}()
+			time.Sleep(10 * time.Millisecond)
+
+			for _, c := range tt.checks {
+				c(t, n)
 			}
 
 			buf.Reset()

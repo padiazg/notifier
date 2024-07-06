@@ -34,7 +34,7 @@ func main() {
 	)
 
 	// add a webhook notifier
-	webhookId := engine.RegisterNotifier(wc.NewWebhookNotifier(&wc.Config{
+	webhookId := engine.RegisterNotifier(wc.New(&wc.Config{
 		Name:     "Webhook",
 		Endpoint: "https://localhost:4443/webhook",
 		Insecure: true,
@@ -45,7 +45,7 @@ func main() {
 	}))
 
 	// add an AMQP notifier
-	amqpId := engine.RegisterNotifier(ac.NewAMQPNotifier(&ac.Config{
+	amqpId := engine.RegisterNotifier(ac.New(&ac.Config{
 		Name:      "AMQP",
 		QueueName: "notifier",
 		Address:   "amqp://localhost",

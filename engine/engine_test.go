@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/padiazg/notifier/connector/amqp"
+	amqp "github.com/padiazg/notifier/connector/amqp10"
 	"github.com/padiazg/notifier/connector/dummy"
 	"github.com/padiazg/notifier/connector/webhook"
 	"github.com/padiazg/notifier/notification"
@@ -160,7 +160,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 			name: "two-notifiers",
 			notifiers: []notification.Notifier{
 				webhook.New(&webhook.Config{}),
-				amqp.NewAMQPNotifier(&amqp.Config{Protocol: amqp.ProtocolAMQP10}),
+				amqp.New(&amqp.Config{}),
 			},
 			checks: checkEngine(
 				hasNotifiers(2),
