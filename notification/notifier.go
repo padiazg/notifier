@@ -2,12 +2,12 @@ package notification
 
 // Notifier is the interface for sending notifications
 type Notifier interface {
+	Type() string
+	Name() string
 	Connect() error
 	Close() error
-	StartWorker()
+	Run()
 	GetChannel() chan *Notification
 	Notify(notification *Notification)
-	SendNotification(notification *Notification) *Result
-	Name() string
-	Type() string
+	Deliver(notification *Notification) *Result
 }

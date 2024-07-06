@@ -47,7 +47,7 @@ func (e *Engine) Start() {
 		}
 
 		go func(n notification.Notifier) {
-			n.StartWorker()
+			n.Run()
 		}(n)
 	}
 }
