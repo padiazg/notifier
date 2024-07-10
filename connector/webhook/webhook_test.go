@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,8 +24,8 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.DoFunc(req)
 }
 
-func checkName(name string) notification.TestCheckNotifierFn {
-	return func(t *testing.T, np notification.Notifier) {
+func checkName(name string) model.TestCheckNotifierFn {
+	return func(t *testing.T, np model.Notifier) {
 		t.Helper()
 		n, _ := np.(*WebhookNotifier)
 		if name != "" {
@@ -44,32 +44,32 @@ func checkName(name string) notification.TestCheckNotifierFn {
 
 func TestNew(t *testing.T) {
 	var (
-		checkConfigSet = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkConfigSet = func() model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 				assert.NotNilf(t, n.Config, "configSet Config expexted to be not nil")
 			}
 		}
 
-		checkEndpoint = func(endpoint string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkEndpoint = func(endpoint string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 				assert.Equalf(t, endpoint, n.Config.Endpoint, "checkEndpoint = %s, expected %s", n.Config.Endpoint, endpoint)
 			}
 		}
 
-		checkInsecure = func(insecure bool) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkInsecure = func(insecure bool) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 				assert.Equalf(t, insecure, n.Config.Insecure, "checkInsecure = %t, expected %t", n.Config.Endpoint, insecure)
 			}
 		}
 
-		checkHeaderExist = func(headerKey, headerValue string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkHeaderExist = func(headerKey, headerValue string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 				value, ok := n.Config.Headers[headerKey]
@@ -81,8 +81,8 @@ func TestNew(t *testing.T) {
 			}
 		}
 
-		checkChannel = func(wantPanic bool) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkChannel = func(wantPanic bool) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 
@@ -108,12 +108,12 @@ func TestNew(t *testing.T) {
 		tests = []struct {
 			name   string
 			config *Config
-			checks []notification.TestCheckNotifierFn
+			checks []model.TestCheckNotifierFn
 		}{
 			{
 				name:   "success-empty-config",
 				config: nil,
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName(""),
 				),
@@ -129,7 +129,7 @@ func TestNew(t *testing.T) {
 						"y-feature":  "123456",
 					},
 				},
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName("webhook-01"),
 					checkEndpoint("http://localhost:8081/webhook"),
@@ -163,19 +163,19 @@ func TestWebhookNotifier_Name(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *Config
-		checks []notification.TestCheckNotifierFn
+		checks []model.TestCheckNotifierFn
 	}{
 		{
 			name:   "success-no-name-set",
 			config: nil,
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkName(""),
 			),
 		},
 		{
 			name:   "success-name-set",
 			config: &Config{Name: "webhook-01"},
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkName("webhook-01"),
 			),
 		},
@@ -218,8 +218,8 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 
 		tests = []struct {
 			name      string
-			channel   chan *notification.Notification
-			payload   *notification.Notification
+			channel   chan *model.Notification
+			payload   *model.Notification
 			wantLog   string
 			wantPanic bool
 			wantValue bool
@@ -233,15 +233,15 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 			},
 			{
 				name:      "nil-payload",
-				channel:   make(chan *notification.Notification, 1),
+				channel:   make(chan *model.Notification, 1),
 				payload:   nil,
 				wantLog:   "payload is nil",
 				wantPanic: false,
 			},
 			{
 				name:      "valid-payload",
-				channel:   make(chan *notification.Notification, 1),
-				payload:   &notification.Notification{},
+				channel:   make(chan *model.Notification, 1),
+				payload:   &model.Notification{},
 				wantLog:   "",
 				wantPanic: false,
 				wantValue: true,
@@ -265,7 +265,7 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 
 			dn.Notify(tt.payload)
 
-			notification.CheckLoggerError(&buf, tt.wantLog)
+			model.CheckLoggerError(&buf, tt.wantLog)
 
 			if tt.wantValue {
 				select {
@@ -286,9 +286,9 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  *Config
-		message *notification.Notification
+		message *model.Notification
 		before  func(*WebhookNotifier)
-		checks  []notification.TestCheckResultFn
+		checks  []model.TestCheckResultFn
 	}{
 		{
 			name:   "json-marshal-error",
@@ -296,8 +296,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 			before: func(n *WebhookNotifier) {
 				n.jsonMarshal = func(_ any) ([]byte, error) { return nil, fmt.Errorf("error from json.Marshal") }
 			},
-			checks: notification.CheckResult(
-				notification.CheckResultError("error from json.Marshal"),
+			checks: model.CheckResult(
+				model.CheckResultError("error from json.Marshal"),
 			),
 		},
 		{
@@ -308,8 +308,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					return nil, fmt.Errorf("test error on http.NewRequest")
 				}
 			},
-			checks: notification.CheckResult(
-				notification.CheckResultError("test error on http.NewRequest"),
+			checks: model.CheckResult(
+				model.CheckResultError("test error on http.NewRequest"),
 			),
 		},
 		{
@@ -321,15 +321,15 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					},
 				}
 			},
-			checks: notification.CheckResult(
-				notification.CheckResultError("test http new request error"),
+			checks: model.CheckResult(
+				model.CheckResultError("test http new request error"),
 			),
 		},
 		{
 			name:   "http-status-code-not-ok",
 			config: &Config{Endpoint: "http://localhost:8080/webhook"},
-			message: &notification.Notification{
-				Event: notification.EventType("test-event"),
+			message: &model.Notification{
+				Event: model.EventType("test-event"),
 				Data:  "test-data",
 			},
 			before: func(n *WebhookNotifier) {
@@ -342,8 +342,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					},
 				}
 			},
-			checks: notification.CheckResult(
-				notification.CheckResultError("webhook returned non-OK status: 403"),
+			checks: model.CheckResult(
+				model.CheckResultError("webhook returned non-OK status: 403"),
 			),
 		},
 		{
@@ -354,8 +354,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					"Header-XYZ": "xyz",
 				},
 			},
-			message: &notification.Notification{
-				Event: notification.EventType("test-event"),
+			message: &model.Notification{
+				Event: model.EventType("test-event"),
 				Data:  "test-data",
 			},
 			before: func(n *WebhookNotifier) {
@@ -369,8 +369,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					},
 				}
 			},
-			checks: notification.CheckResult(
-				notification.CheckResultError(""),
+			checks: model.CheckResult(
+				model.CheckResultError(""),
 			),
 		},
 	}
@@ -395,8 +395,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 
 func TestWebhookNotifier_getClient(t *testing.T) {
 	var (
-		checkClientType = func(clientType interface{}) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkClientType = func(clientType interface{}) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*WebhookNotifier)
 				expected := reflect.TypeOf(clientType)
@@ -405,8 +405,8 @@ func TestWebhookNotifier_getClient(t *testing.T) {
 			}
 		}
 
-		checkClientInsecure = func(want bool) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkClientInsecure = func(want bool) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				var (
 					insecureSkipVerify bool
 					n, _               = np.(*WebhookNotifier)
@@ -425,14 +425,14 @@ func TestWebhookNotifier_getClient(t *testing.T) {
 			name   string
 			config *Config
 			before func(*WebhookNotifier)
-			checks []notification.TestCheckNotifierFn
+			checks []model.TestCheckNotifierFn
 		}{
 			{
 				name: "existing-client",
 				before: func(n *WebhookNotifier) {
 					n.client = &mockHTTPClient{}
 				},
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkClientType(&mockHTTPClient{}),
 				),
 			},
@@ -441,7 +441,7 @@ func TestWebhookNotifier_getClient(t *testing.T) {
 				before: func(n *WebhookNotifier) {
 					n.client = nil
 				},
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkClientType(&http.Client{}),
 					checkClientInsecure(false),
 				),
@@ -452,7 +452,7 @@ func TestWebhookNotifier_getClient(t *testing.T) {
 				before: func(n *WebhookNotifier) {
 					n.client = nil
 				},
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkClientType(&http.Client{}),
 					checkClientInsecure(true),
 				),
@@ -485,9 +485,9 @@ func TestWebhookNotifier_Run(t *testing.T) {
 		tests = []struct {
 			name    string
 			config  *Config
-			message *notification.Notification
+			message *model.Notification
 			before  func(*WebhookNotifier)
-			checks  []notification.TestCheckNotifierFn
+			checks  []model.TestCheckNotifierFn
 		}{
 			{
 				name:   "fail-forbidden",
@@ -502,8 +502,8 @@ func TestWebhookNotifier_Run(t *testing.T) {
 						},
 					}
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, "webhook returned non-OK status: 403"),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, "webhook returned non-OK status: 403"),
 				},
 			},
 			{
@@ -519,8 +519,8 @@ func TestWebhookNotifier_Run(t *testing.T) {
 						},
 					}
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, ""),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, ""),
 				},
 			},
 		}
@@ -542,7 +542,7 @@ func TestWebhookNotifier_Run(t *testing.T) {
 
 			// send a single message and close the channel
 			go func() {
-				n.Channel <- &notification.Notification{Data: "Test message"}
+				n.Channel <- &model.Notification{Data: "Test message"}
 				close(n.Channel)
 			}()
 			time.Sleep(10 * time.Millisecond)

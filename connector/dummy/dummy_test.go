@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,16 +19,16 @@ func TestNew(t *testing.T) {
 		buf    bytes.Buffer
 		logger = log.New(&buf, "test-logger", log.LstdFlags)
 
-		checkConfigSet = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkConfigSet = func() model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*DummyNotifier)
 				assert.NotNilf(t, n.Config, "configSet Config expexted to be not nil")
 			}
 		}
 
-		checkConfigName = func(name string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkConfigName = func(name string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*DummyNotifier)
 				if name != "" {
@@ -45,8 +45,8 @@ func TestNew(t *testing.T) {
 			}
 		}
 
-		checkLogger = func(mark string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkLogger = func(mark string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*DummyNotifier)
 
@@ -63,12 +63,12 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *Config
-		checks []notification.TestCheckNotifierFn
+		checks []model.TestCheckNotifierFn
 	}{
 		{
 			name:   "success-empty-config",
 			config: nil,
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkConfigSet(),
 				checkConfigName(""),
 				checkLogger(""),
@@ -80,7 +80,7 @@ func TestNew(t *testing.T) {
 				Name:   "dummy-test",
 				Logger: logger,
 			},
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkConfigSet(),
 				checkConfigName("dummy-test"),
 				checkLogger("test-logger-a"),
@@ -189,8 +189,8 @@ func TestDummyNotifier_Notify(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		channel   chan *notification.Notification
-		payload   *notification.Notification
+		channel   chan *model.Notification
+		payload   *model.Notification
 		wantLog   string
 		wantPanic bool
 		wantValue bool
@@ -204,15 +204,15 @@ func TestDummyNotifier_Notify(t *testing.T) {
 		},
 		{
 			name:      "nil-payload",
-			channel:   make(chan *notification.Notification, 1),
+			channel:   make(chan *model.Notification, 1),
 			payload:   nil,
 			wantLog:   "payload is nil",
 			wantPanic: false,
 		},
 		{
 			name:      "valid-payload",
-			channel:   make(chan *notification.Notification, 1),
-			payload:   &notification.Notification{},
+			channel:   make(chan *model.Notification, 1),
+			payload:   &model.Notification{},
 			wantLog:   "",
 			wantPanic: false,
 			wantValue: true,
@@ -234,7 +234,7 @@ func TestDummyNotifier_Notify(t *testing.T) {
 
 			n.Notify(tt.payload)
 
-			notification.CheckLoggerError(&buf, tt.wantLog)
+			model.CheckLoggerError(&buf, tt.wantLog)
 
 			if tt.wantValue {
 				select {
@@ -261,27 +261,27 @@ func TestWebhookNotifier_Run(t *testing.T) {
 		tests = []struct {
 			name    string
 			config  *Config
-			message *notification.Notification
-			checks  []notification.TestCheckNotifierFn
+			message *model.Notification
+			checks  []model.TestCheckNotifierFn
 		}{
 			{
 				name:   "fail",
 				config: &Config{Logger: logger},
-				message: &notification.Notification{
+				message: &model.Notification{
 					Data: "must-fail",
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, "unexpected type"),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, "unexpected type"),
 				},
 			},
 			{
 				name:   "success",
 				config: &Config{Logger: logger},
-				message: &notification.Notification{
-					Data: &notification.Result{Success: true},
+				message: &model.Notification{
+					Data: &model.Result{Success: true},
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, ""),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, ""),
 				},
 			},
 		}
@@ -315,15 +315,15 @@ func TestWebhookNotifier_Run(t *testing.T) {
 func TestDummyNotifier_Exists(t *testing.T) {
 	tests := []struct {
 		name   string
-		before func(d *DummyNotifier) *notification.Notification
+		before func(d *DummyNotifier) *model.Notification
 		want   bool
 	}{
 		{
 			name: "found",
-			before: func(d *DummyNotifier) *notification.Notification {
-				n := &notification.Notification{
+			before: func(d *DummyNotifier) *model.Notification {
+				n := &model.Notification{
 					ID:    "payload-01",
-					Event: notification.EventType("test"),
+					Event: model.EventType("test"),
 					Data:  nil,
 				}
 				d.lock.Lock()
@@ -336,10 +336,10 @@ func TestDummyNotifier_Exists(t *testing.T) {
 		},
 		{
 			name: "not-found",
-			before: func(d *DummyNotifier) *notification.Notification {
-				return &notification.Notification{
+			before: func(d *DummyNotifier) *model.Notification {
+				return &model.Notification{
 					ID:    "payload-01",
-					Event: notification.EventType("test"),
+					Event: model.EventType("test"),
 					Data:  nil,
 				}
 			},
@@ -351,7 +351,7 @@ func TestDummyNotifier_Exists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				d = New(&Config{})
-				n *notification.Notification
+				n *model.Notification
 			)
 
 			if tt.before != nil {
@@ -368,15 +368,15 @@ func TestDummyNotifier_Exists(t *testing.T) {
 func TestDummyNotifier_First(t *testing.T) {
 	tests := []struct {
 		name   string
-		before func(d *DummyNotifier) *notification.Notification
+		before func(d *DummyNotifier) *model.Notification
 		want   bool
 	}{
 		{
 			name: "found",
-			before: func(d *DummyNotifier) *notification.Notification {
-				n := &notification.Notification{
+			before: func(d *DummyNotifier) *model.Notification {
+				n := &model.Notification{
 					ID:    "payload-01",
-					Event: notification.EventType("test"),
+					Event: model.EventType("test"),
 					Data:  nil,
 				}
 				d.lock.Lock()
@@ -389,10 +389,10 @@ func TestDummyNotifier_First(t *testing.T) {
 		},
 		{
 			name: "not-found",
-			before: func(d *DummyNotifier) *notification.Notification {
-				return &notification.Notification{
+			before: func(d *DummyNotifier) *model.Notification {
+				return &model.Notification{
 					ID:    "payload-01",
-					Event: notification.EventType("test"),
+					Event: model.EventType("test"),
 					Data:  nil,
 				}
 			},
@@ -404,7 +404,7 @@ func TestDummyNotifier_First(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				d = New(&Config{})
-				n *notification.Notification
+				n *model.Notification
 			)
 
 			if tt.before != nil {
@@ -422,29 +422,29 @@ func TestDummyNotifier_First(t *testing.T) {
 func TestDummyNotifier_In(t *testing.T) {
 	tests := []struct {
 		name   string
-		before func(d *DummyNotifier) []*notification.Notification
+		before func(d *DummyNotifier) []*model.Notification
 	}{
 		{
 			name: "success-nil-notifications",
-			before: func(d *DummyNotifier) []*notification.Notification {
-				var n []*notification.Notification
+			before: func(d *DummyNotifier) []*model.Notification {
+				var n []*model.Notification
 				d.in = n
 				return n
 			},
 		},
 		{
 			name: "success-empty-notifications",
-			before: func(d *DummyNotifier) []*notification.Notification {
-				n := []*notification.Notification{}
+			before: func(d *DummyNotifier) []*model.Notification {
+				n := []*model.Notification{}
 				d.in = n
 				return n
 			},
 		},
 		{
 			name: "success-one-notification",
-			before: func(d *DummyNotifier) []*notification.Notification {
-				n := []*notification.Notification{
-					{ID: "001", Event: notification.EventType("test"), Data: "test"},
+			before: func(d *DummyNotifier) []*model.Notification {
+				n := []*model.Notification{
+					{ID: "001", Event: model.EventType("test"), Data: "test"},
 				}
 				d.in = n
 				return n
@@ -452,10 +452,10 @@ func TestDummyNotifier_In(t *testing.T) {
 		},
 		{
 			name: "success-two-notification",
-			before: func(d *DummyNotifier) []*notification.Notification {
-				n := []*notification.Notification{
-					{ID: "001", Event: notification.EventType("test"), Data: "test"},
-					{ID: "002", Event: notification.EventType("test"), Data: "test"},
+			before: func(d *DummyNotifier) []*model.Notification {
+				n := []*model.Notification{
+					{ID: "001", Event: model.EventType("test"), Data: "test"},
+					{ID: "002", Event: model.EventType("test"), Data: "test"},
 				}
 				d.in = n
 				return n
@@ -466,7 +466,7 @@ func TestDummyNotifier_In(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				d = New(&Config{})
-				n []*notification.Notification
+				n []*model.Notification
 			)
 
 			if tt.before != nil {

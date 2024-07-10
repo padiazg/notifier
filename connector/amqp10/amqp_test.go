@@ -11,7 +11,7 @@ import (
 	"time"
 
 	amqp "github.com/Azure/go-amqp"
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -57,8 +57,8 @@ func (m *MockInternalWrapper) CloseSession(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func checkName(name string) notification.TestCheckNotifierFn {
-	return func(t *testing.T, np notification.Notifier) {
+func checkName(name string) model.TestCheckNotifierFn {
+	return func(t *testing.T, np model.Notifier) {
 		t.Helper()
 		an, _ := np.(*AMQPNotifier)
 		if name != "" {
@@ -80,16 +80,16 @@ func TestAMQPNotifier_New(t *testing.T) {
 		buf    bytes.Buffer
 		logger = log.New(&buf, "test-logger", log.LstdFlags)
 
-		checkConfigSet = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkConfigSet = func() model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*AMQPNotifier)
 				assert.NotNilf(t, n.Config, "configSet Config expexted to be not nil")
 			}
 		}
 
-		checkName = func(name string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkName = func(name string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				n, _ := np.(*AMQPNotifier)
 				if name != "" {
@@ -106,8 +106,8 @@ func TestAMQPNotifier_New(t *testing.T) {
 			}
 		}
 
-		checkLogger = func(mark string) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkLogger = func(mark string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				n, _ := np.(*AMQPNotifier)
 
 				if assert.NotEmptyf(t, n.Logger, "checkLogger Logger is empty, expected to be set") {
@@ -119,22 +119,22 @@ func TestAMQPNotifier_New(t *testing.T) {
 			}
 		}
 
-		checkCtx = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkCtx = func() model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				n, _ := np.(*AMQPNotifier)
 				assert.NotNilf(t, n.ctx, "ctx is nil, expected not to")
 			}
 		}
 
-		checkWrapper = func() notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkWrapper = func() model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				n, _ := np.(*AMQPNotifier)
 				assert.NotNilf(t, n.wrapper, "wrapper is nil, expected not to")
 			}
 		}
 
-		checkChannel = func(wantPanic bool) notification.TestCheckNotifierFn {
-			return func(t *testing.T, np notification.Notifier) {
+		checkChannel = func(wantPanic bool) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
 				an, _ := np.(*AMQPNotifier)
 
@@ -160,12 +160,12 @@ func TestAMQPNotifier_New(t *testing.T) {
 		tests = []struct {
 			name   string
 			config *Config
-			checks []notification.TestCheckNotifierFn
+			checks []model.TestCheckNotifierFn
 		}{
 			{
 				name:   "success-empty-config",
 				config: nil,
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName(""),
 					checkLogger(""),
@@ -182,7 +182,7 @@ func TestAMQPNotifier_New(t *testing.T) {
 					Address:   "amqp://localhost",
 					Logger:    logger,
 				},
-				checks: notification.CheckNotifier(
+				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName("amqp-10"),
 					checkLogger("test-logger-a"),
@@ -216,19 +216,19 @@ func TestAMQPNotifier_Name(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *Config
-		checks []notification.TestCheckNotifierFn
+		checks []model.TestCheckNotifierFn
 	}{
 		{
 			name:   "success-no-name-set",
 			config: nil,
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkName(""),
 			),
 		},
 		{
 			name:   "success-name-set",
 			config: &Config{Name: "amqp-01"},
-			checks: notification.CheckNotifier(
+			checks: model.CheckNotifier(
 				checkName("amqp-01"),
 			),
 		},
@@ -415,8 +415,8 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 
 		tests = []struct {
 			name      string
-			channel   chan *notification.Notification
-			payload   *notification.Notification
+			channel   chan *model.Notification
+			payload   *model.Notification
 			wantLog   string
 			wantPanic bool
 			wantValue bool
@@ -430,15 +430,15 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 			},
 			{
 				name:      "nil-payload",
-				channel:   make(chan *notification.Notification, 1),
+				channel:   make(chan *model.Notification, 1),
 				payload:   nil,
 				wantLog:   "payload is nil",
 				wantPanic: false,
 			},
 			{
 				name:      "valid-payload",
-				channel:   make(chan *notification.Notification, 1),
-				payload:   &notification.Notification{},
+				channel:   make(chan *model.Notification, 1),
+				payload:   &model.Notification{},
 				wantLog:   "",
 				wantPanic: false,
 				wantValue: true,
@@ -462,7 +462,7 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 
 			dn.Notify(tt.payload)
 
-			notification.CheckLoggerError(&buf, tt.wantLog)
+			model.CheckLoggerError(&buf, tt.wantLog)
 
 			if tt.wantValue {
 				select {
@@ -483,12 +483,12 @@ func TestAMQPNotifier_Run(t *testing.T) {
 	var (
 		buf     bytes.Buffer
 		logger  = log.New(&buf, "test:", log.LstdFlags)
-		message = &notification.Notification{Data: "test"}
+		message = &model.Notification{Data: "test"}
 
 		tests = []struct {
 			name   string
 			before func(n *AMQPNotifier)
-			checks []notification.TestCheckNotifierFn
+			checks []model.TestCheckNotifierFn
 		}{
 			{
 				name: "success",
@@ -505,8 +505,8 @@ func TestAMQPNotifier_Run(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, ""),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, ""),
 				},
 			},
 			{
@@ -524,8 +524,8 @@ func TestAMQPNotifier_Run(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, "test-jsonMarshal-error"),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, "test-jsonMarshal-error"),
 				},
 			},
 			{
@@ -545,8 +545,8 @@ func TestAMQPNotifier_Run(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckNotifierFn{
-					notification.CheckLoggerError(&buf, "message delivery timed out"),
+				checks: []model.TestCheckNotifierFn{
+					model.CheckLoggerError(&buf, "message delivery timed out"),
 				},
 			},
 		}
@@ -593,9 +593,9 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 	var (
 		buf     bytes.Buffer
 		logger  = log.New(&buf, "test:", log.LstdFlags)
-		message = &notification.Notification{Data: "test"}
+		message = &model.Notification{Data: "test"}
 
-		checkSuccess = func(t *testing.T, n notification.Notifier, r *notification.Result) {
+		checkSuccess = func(t *testing.T, n model.Notifier, r *model.Result) {
 			t.Helper()
 			assert.True(t, r.Success)
 		}
@@ -603,7 +603,7 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 		tests = []struct {
 			name   string
 			before func(n *AMQPNotifier)
-			checks []notification.TestCheckResultFn
+			checks []model.TestCheckResultFn
 		}{
 			{
 				name: "success",
@@ -620,8 +620,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckResultFn{
-					notification.CheckResultError(""),
+				checks: []model.TestCheckResultFn{
+					model.CheckResultError(""),
 					checkSuccess,
 				},
 			},
@@ -640,8 +640,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckResultFn{
-					notification.CheckResultError("test-jsonMarshal-error"),
+				checks: []model.TestCheckResultFn{
+					model.CheckResultError("test-jsonMarshal-error"),
 				},
 			},
 			{
@@ -659,8 +659,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(fmt.Errorf("test-Send-error"))
 				},
-				checks: []notification.TestCheckResultFn{
-					notification.CheckResultError("sending message:"),
+				checks: []model.TestCheckResultFn{
+					model.CheckResultError("sending message:"),
 				},
 			},
 			{
@@ -680,8 +680,8 @@ func TestWebhookNotifier_Deliver(t *testing.T) {
 					w.On("Send", mock.Anything, amqp.NewMessage(payload), (*amqp.SendOptions)(nil)).
 						Return(nil)
 				},
-				checks: []notification.TestCheckResultFn{
-					notification.CheckResultError("message delivery timed out"),
+				checks: []model.TestCheckResultFn{
+					model.CheckResultError("message delivery timed out"),
 				},
 			},
 		}

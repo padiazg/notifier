@@ -1,4 +1,4 @@
-package notification
+package model
 
 import (
 	"bytes"

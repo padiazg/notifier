@@ -5,13 +5,13 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 )
 
 // Engine handles the dispatch and tracking of notifications
 type Engine struct {
 	OnError   func(error)
-	notifiers map[string]notification.Notifier
+	notifiers map[string]model.Notifier
 }
 
 func NewEngine(config *Config) *Engine {
@@ -27,12 +27,12 @@ func (e *Engine) New(config *Config) *Engine {
 		e.OnError = config.OnError
 	}
 
-	e.notifiers = make(map[string]notification.Notifier)
+	e.notifiers = make(map[string]model.Notifier)
 
 	return e
 }
 
-func (e *Engine) RegisterNotifier(n notification.Notifier) string {
+func (e *Engine) RegisterNotifier(n model.Notifier) string {
 	id := n.Name()
 	e.notifiers[id] = n
 
@@ -46,7 +46,7 @@ func (e *Engine) Start() {
 			continue
 		}
 
-		go func(n notification.Notifier) {
+		go func(n model.Notifier) {
 			n.Run()
 		}(n)
 	}
@@ -60,7 +60,7 @@ func (e *Engine) Stop() {
 	}
 }
 
-func (e *Engine) Dispatch(message *notification.Notification) {
+func (e *Engine) Dispatch(message *model.Notification) {
 	if message == nil {
 		return
 	}
@@ -76,14 +76,14 @@ func (e *Engine) Dispatch(message *notification.Notification) {
 	}
 }
 
-func (e *Engine) dispatchAll(message *notification.Notification) {
+func (e *Engine) dispatchAll(message *model.Notification) {
 	wg := sync.WaitGroup{}
 
 	for _, n := range e.notifiers {
 		fmt.Printf("Engine.dispatchAll %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
 
-		go func(n notification.Notifier) {
+		go func(n model.Notifier) {
 			defer wg.Done()
 			n.Notify(message)
 		}(n)
@@ -92,7 +92,7 @@ func (e *Engine) dispatchAll(message *notification.Notification) {
 	wg.Wait()
 }
 
-func (e *Engine) dispatchChannels(message *notification.Notification) {
+func (e *Engine) dispatchChannels(message *model.Notification) {
 	wg := sync.WaitGroup{}
 
 	for _, c := range message.Channels {
@@ -105,7 +105,7 @@ func (e *Engine) dispatchChannels(message *notification.Notification) {
 		fmt.Printf("Engine.dispatchChannels %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
 
-		go func(n notification.Notifier) {
+		go func(n model.Notifier) {
 			defer wg.Done()
 			n.Notify(message)
 		}(n)

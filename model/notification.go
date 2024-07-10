@@ -1,4 +1,4 @@
-package notification
+package model
 
 // EventType represents the possible event types
 type EventType string
