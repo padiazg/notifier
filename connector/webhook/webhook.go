@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/padiazg/notifier/utils"
 )
 
@@ -27,7 +27,7 @@ type Config struct {
 
 type WebhookNotifier struct {
 	*Config
-	Channel        chan *notification.Notification
+	Channel        chan *model.Notification
 	client         HTTPClient
 	jsonMarshal    func(v any) ([]byte, error)
 	httpNewRequest func(method string, url string, body io.Reader) (*http.Request, error)
@@ -38,7 +38,7 @@ type WebhookNotifier struct {
 // 	httpNewRequest = http.NewRequest
 // )
 
-var _ notification.Notifier = (*WebhookNotifier)(nil)
+var _ model.Notifier = (*WebhookNotifier)(nil)
 
 func New(config *Config) *WebhookNotifier {
 	return (&WebhookNotifier{}).New(config)
@@ -54,7 +54,7 @@ func (n *WebhookNotifier) New(config *Config) *WebhookNotifier {
 	}
 
 	n.Config = config
-	n.Channel = make(chan *notification.Notification)
+	n.Channel = make(chan *model.Notification)
 	n.jsonMarshal = json.Marshal
 	n.httpNewRequest = http.NewRequest
 
@@ -88,12 +88,12 @@ func (n *WebhookNotifier) Run() {
 }
 
 // GetChannel returns the channel used by the worker
-func (n *WebhookNotifier) GetChannel() chan *notification.Notification {
+func (n *WebhookNotifier) GetChannel() chan *model.Notification {
 	return n.Channel
 }
 
 // Notify sends a notification to worker
-func (n *WebhookNotifier) Notify(payload *notification.Notification) {
+func (n *WebhookNotifier) Notify(payload *model.Notification) {
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")
 		return
@@ -108,17 +108,17 @@ func (n *WebhookNotifier) Notify(payload *notification.Notification) {
 }
 
 // Deliver sends a notification to the webhook
-func (n *WebhookNotifier) Deliver(message *notification.Notification) *notification.Result {
+func (n *WebhookNotifier) Deliver(message *model.Notification) *model.Result {
 	// Serialize the notification data to JSON
 	payload, err := n.jsonMarshal(message)
 	if err != nil {
-		return &notification.Result{Success: false, Error: err}
+		return &model.Result{Success: false, Error: err}
 	}
 
 	// Send the POST request to the webhook endpoint
 	r, err := n.httpNewRequest(http.MethodPost, n.Endpoint, bytes.NewBuffer(payload))
 	if err != nil {
-		return &notification.Result{Success: false, Error: err}
+		return &model.Result{Success: false, Error: err}
 	}
 
 	// Ser headers
@@ -132,13 +132,13 @@ func (n *WebhookNotifier) Deliver(message *notification.Notification) *notificat
 
 	resp, err := client.Do(r)
 	if err != nil {
-		return &notification.Result{Success: false, Error: err}
+		return &model.Result{Success: false, Error: err}
 	}
 	defer resp.Body.Close()
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
-		return &notification.Result{Success: false, Error: fmt.Errorf("webhook returned non-OK status: %d", resp.StatusCode)}
+		return &model.Result{Success: false, Error: fmt.Errorf("webhook returned non-OK status: %d", resp.StatusCode)}
 	}
 
 	// Read the response body if needed
@@ -147,7 +147,7 @@ func (n *WebhookNotifier) Deliver(message *notification.Notification) *notificat
 	// 	return NotificationResult{Success: false, Error: err}
 	// }
 
-	return &notification.Result{Success: true}
+	return &model.Result{Success: true}
 }
 
 func (n *WebhookNotifier) getClient() HTTPClient {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/padiazg/notifier/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 	// amqp "github.com/rabbitmq/amqp091-go"
@@ -34,11 +34,11 @@ type Config struct {
 // AMQPNotifier implements the Notifier interface for message queues
 type AMQPNotifier struct {
 	*Config
-	Channel     chan *notification.Notification
+	Channel     chan *model.Notification
 	jsonMarshal func(v any) ([]byte, error)
 }
 
-var _ notification.Notifier = (*AMQPNotifier)(nil)
+var _ model.Notifier = (*AMQPNotifier)(nil)
 
 func New(config *Config) *AMQPNotifier {
 	return (&AMQPNotifier{}).New(config)
@@ -67,7 +67,7 @@ func (n *AMQPNotifier) New(config *Config) *AMQPNotifier {
 
 	n.Config = config
 	n.jsonMarshal = json.Marshal
-	n.Channel = make(chan *notification.Notification)
+	n.Channel = make(chan *model.Notification)
 
 	return n
 }
@@ -80,7 +80,7 @@ func (n *AMQPNotifier) Name() string {
 	return n.Config.Name
 }
 
-func (n *AMQPNotifier) GetChannel() chan *notification.Notification {
+func (n *AMQPNotifier) GetChannel() chan *model.Notification {
 	return n.Channel
 }
 
@@ -115,7 +115,7 @@ func (n *AMQPNotifier) Run() {
 	}
 }
 
-func (n *AMQPNotifier) Notify(payload *notification.Notification) {
+func (n *AMQPNotifier) Notify(payload *model.Notification) {
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")
 		return
@@ -129,7 +129,7 @@ func (n *AMQPNotifier) Notify(payload *notification.Notification) {
 	n.Channel <- payload
 }
 
-func (n *AMQPNotifier) Deliver(message *notification.Notification) *notification.Result {
+func (n *AMQPNotifier) Deliver(message *model.Notification) *model.Result {
 	var (
 		ctx, cancel = context.WithTimeout(n.ctx, n.Config.DeliveryTimeout*time.Millisecond)
 		err         error
@@ -140,7 +140,7 @@ func (n *AMQPNotifier) Deliver(message *notification.Notification) *notification
 	// Serialize the notification data to JSON
 	payload, err := n.jsonMarshal(message)
 	if err != nil {
-		return &notification.Result{Success: false, Error: err}
+		return &model.Result{Success: false, Error: err}
 	}
 
 	err = n.wrapper.PublishWithContext(ctx,
@@ -153,16 +153,16 @@ func (n *AMQPNotifier) Deliver(message *notification.Notification) *notification
 			Body:        payload,
 		})
 	if err != nil {
-		return &notification.Result{Success: false, Error: fmt.Errorf("sending message: %v", err)}
+		return &model.Result{Success: false, Error: fmt.Errorf("sending message: %v", err)}
 	}
 
 	select {
 	case <-ctx.Done():
 		if ctx.Err() == context.DeadlineExceeded {
-			return &notification.Result{Success: false, Error: fmt.Errorf("message delivery timed out")}
+			return &model.Result{Success: false, Error: fmt.Errorf("message delivery timed out")}
 		}
-		return &notification.Result{Success: false, Error: ctx.Err()}
+		return &model.Result{Success: false, Error: ctx.Err()}
 	default:
-		return &notification.Result{Success: true}
+		return &model.Result{Success: true}
 	}
 }

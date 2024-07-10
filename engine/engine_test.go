@@ -8,12 +8,12 @@ import (
 	amqp "github.com/padiazg/notifier/connector/amqp10"
 	"github.com/padiazg/notifier/connector/dummy"
 	"github.com/padiazg/notifier/connector/webhook"
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 	"github.com/stretchr/testify/assert"
 )
 
 type engineTestCheckFn func(*testing.T, *Engine)
-type notificationCheckFn func(*testing.T, *Engine, *notification.Notification)
+type notificationCheckFn func(*testing.T, *Engine, *model.Notification)
 
 var (
 	checkEngine        = func(fns ...engineTestCheckFn) []engineTestCheckFn { return fns }
@@ -60,7 +60,7 @@ func hasErrors(has bool) engineTestCheckFn {
 }
 
 func hasErrorsNotification(has bool) notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *notification.Notification) {
+	return func(t *testing.T, e *Engine, n *model.Notification) {
 		t.Helper()
 		if has {
 			assert.NotEmptyf(t, errors, "hasErrorsNotification errors expected, none produced")
@@ -71,7 +71,7 @@ func hasErrorsNotification(has bool) notificationCheckFn {
 }
 
 func notificationReceived() notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *notification.Notification) {
+	return func(t *testing.T, e *Engine, n *model.Notification) {
 		t.Helper()
 		if len(n.Channels) == 0 {
 			for _, nt := range e.notifiers {
@@ -92,7 +92,7 @@ func notificationReceived() notificationCheckFn {
 
 // call this checker with a single notifier and a single notification
 func notificationHasId() notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *notification.Notification) {
+	return func(t *testing.T, e *Engine, n *model.Notification) {
 		t.Helper()
 		for _, nt := range e.notifiers {
 			data := nt.(*dummy.DummyNotifier).First()
@@ -144,12 +144,12 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    *Config
-		notifiers []notification.Notifier
+		notifiers []model.Notifier
 		checks    []engineTestCheckFn
 	}{
 		{
 			name: "one-notifier",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				webhook.New(&webhook.Config{}),
 			},
 			checks: checkEngine(
@@ -158,7 +158,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 		},
 		{
 			name: "two-notifiers",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				webhook.New(&webhook.Config{}),
 				amqp.New(&amqp.Config{}),
 			},
@@ -185,12 +185,12 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 func TestEngine_Start(t *testing.T) {
 	tests := []struct {
 		name      string
-		notifiers []notification.Notifier
+		notifiers []model.Notifier
 		checks    []engineTestCheckFn
 	}{
 		{
 			name: "connect-error",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				&dummy.DummyNotifier{
 					Config: &dummy.Config{
 						Name:         "dummy-01",
@@ -204,7 +204,7 @@ func TestEngine_Start(t *testing.T) {
 		},
 		{
 			name: "success",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				&dummy.DummyNotifier{Config: &dummy.Config{Name: "dummy-01"}},
 			},
 			checks: checkEngine(
@@ -242,26 +242,26 @@ func TestEngine_Start(t *testing.T) {
 func TestEngine_Dispatch(t *testing.T) {
 	tests := []struct {
 		name      string
-		message   *notification.Notification
+		message   *model.Notification
 		checks    []notificationCheckFn
-		notifiers []notification.Notifier
+		notifiers []model.Notifier
 		// before  func(e *Engine)
 	}{
 		{
 			name: "success-empty-message",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 			},
 			message: nil,
 		},
 		{
 			name: "success-empty-message-id",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 			},
-			message: &notification.Notification{
-				Event: notification.EventType("test"),
-				Data: &notification.Result{
+			message: &model.Notification{
+				Event: model.EventType("test"),
+				Data: &model.Result{
 					Success: true,
 					Error:   nil,
 				},
@@ -272,13 +272,13 @@ func TestEngine_Dispatch(t *testing.T) {
 		},
 		{
 			name: "success-one-notifier",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 			},
-			message: &notification.Notification{
+			message: &model.Notification{
 				ID:    "msg-01",
-				Event: notification.EventType("test"),
-				Data: &notification.Result{
+				Event: model.EventType("test"),
+				Data: &model.Result{
 					Success: true,
 					Error:   nil,
 				},
@@ -289,14 +289,14 @@ func TestEngine_Dispatch(t *testing.T) {
 		},
 		{
 			name: "success-two-notifiers",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 				dummy.New(&dummy.Config{Name: "dummy-02"}),
 			},
-			message: &notification.Notification{
+			message: &model.Notification{
 				ID:    "msg-01",
-				Event: notification.EventType("test"),
-				Data: &notification.Result{
+				Event: model.EventType("test"),
+				Data: &model.Result{
 					Success: true,
 					Error:   nil,
 				},
@@ -307,15 +307,15 @@ func TestEngine_Dispatch(t *testing.T) {
 		},
 		{
 			name: "success-two-notifiers-one-reveived",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 				dummy.New(&dummy.Config{Name: "dummy-02"}),
 			},
-			message: &notification.Notification{
+			message: &model.Notification{
 				ID:       "msg-01",
-				Event:    notification.EventType("test"),
+				Event:    model.EventType("test"),
 				Channels: []string{"dummy-02"},
-				Data: &notification.Result{
+				Data: &model.Result{
 					Success: true,
 					Error:   nil,
 				},
@@ -326,15 +326,15 @@ func TestEngine_Dispatch(t *testing.T) {
 		},
 		{
 			name: "fail-missing-channel",
-			notifiers: []notification.Notifier{
+			notifiers: []model.Notifier{
 				dummy.New(&dummy.Config{Name: "dummy-01"}),
 				dummy.New(&dummy.Config{Name: "dummy-02"}),
 			},
-			message: &notification.Notification{
+			message: &model.Notification{
 				ID:       "msg-01",
-				Event:    notification.EventType("test"),
+				Event:    model.EventType("test"),
 				Channels: []string{"dummy-03"},
-				Data: &notification.Result{
+				Data: &model.Result{
 					Success: true,
 					Error:   nil,
 				},

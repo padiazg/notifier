@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/padiazg/notifier/notification"
+	"github.com/padiazg/notifier/model"
 )
 
 type Config struct {
@@ -18,15 +18,15 @@ type Config struct {
 type DummyNotifier struct {
 	lock *sync.RWMutex
 	*Config
-	Channel chan *notification.Notification
-	in      []*notification.Notification
+	Channel chan *model.Notification
+	in      []*model.Notification
 }
 
-var _ notification.Notifier = (*DummyNotifier)(nil)
+var _ model.Notifier = (*DummyNotifier)(nil)
 
 func New(config *Config) *DummyNotifier {
 	n := &DummyNotifier{
-		in:   make([]*notification.Notification, 0),
+		in:   make([]*model.Notification, 0),
 		lock: &sync.RWMutex{},
 	}
 
@@ -40,7 +40,7 @@ func New(config *Config) *DummyNotifier {
 
 	n.Config = config
 
-	n.Channel = make(chan *notification.Notification)
+	n.Channel = make(chan *model.Notification)
 
 	if config.Logger == nil {
 		config.Logger = log.New(os.Stderr, "", log.LstdFlags)
@@ -65,7 +65,7 @@ func (n *DummyNotifier) Close() error {
 }
 
 func (n *DummyNotifier) Run() {
-	n.Channel = make(chan *notification.Notification)
+	n.Channel = make(chan *model.Notification)
 	for notification := range n.Channel {
 		r := n.Deliver(notification)
 		if !r.Success {
@@ -74,11 +74,11 @@ func (n *DummyNotifier) Run() {
 	}
 }
 
-func (n *DummyNotifier) GetChannel() chan *notification.Notification {
+func (n *DummyNotifier) GetChannel() chan *model.Notification {
 	return n.Channel
 }
 
-func (n *DummyNotifier) Notify(payload *notification.Notification) {
+func (n *DummyNotifier) Notify(payload *model.Notification) {
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")
 		return
@@ -92,23 +92,23 @@ func (n *DummyNotifier) Notify(payload *notification.Notification) {
 	n.Channel <- payload
 }
 
-func (n *DummyNotifier) Deliver(message *notification.Notification) *notification.Result {
+func (n *DummyNotifier) Deliver(message *model.Notification) *model.Result {
 	n.lock.Lock()
 	n.in = append(n.in, message)
 	defer n.lock.Unlock()
 
-	// to trigger a deliver error assign message.Data a value different than notification.Result
-	res, ok := message.Data.(*notification.Result)
+	// to trigger a deliver error assign message.Data a value different than model.Result
+	res, ok := message.Data.(*model.Result)
 	if !ok {
-		res = &notification.Result{Error: fmt.Errorf("unexpected type: %T", message.Data)}
+		res = &model.Result{Error: fmt.Errorf("unexpected type: %T", message.Data)}
 	}
 
 	return res
 }
 
-func (n *DummyNotifier) In() []*notification.Notification { return n.in }
+func (n *DummyNotifier) In() []*model.Notification { return n.in }
 
-func (n *DummyNotifier) Exists(item *notification.Notification) bool {
+func (n *DummyNotifier) Exists(item *model.Notification) bool {
 	n.lock.Lock()
 
 	defer n.lock.Unlock()
@@ -122,7 +122,7 @@ func (n *DummyNotifier) Exists(item *notification.Notification) bool {
 	return false
 }
 
-func (n *DummyNotifier) First() *notification.Notification {
+func (n *DummyNotifier) First() *model.Notification {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
