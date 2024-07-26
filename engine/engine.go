@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/padiazg/notifier/model"
+	"github.com/padiazg/notifier/utils"
 )
 
 // Engine handles the dispatch and tracking of notifications
@@ -14,7 +14,7 @@ type Engine struct {
 	notifiers map[string]model.Notifier
 }
 
-func NewEngine(config *Config) *Engine {
+func New(config *Config) *Engine {
 	return (&Engine{}).New(config)
 }
 
@@ -32,7 +32,7 @@ func (e *Engine) New(config *Config) *Engine {
 	return e
 }
 
-func (e *Engine) RegisterNotifier(n model.Notifier) string {
+func (e *Engine) Register(n model.Notifier) string {
 	id := n.Name()
 	e.notifiers[id] = n
 
@@ -66,7 +66,7 @@ func (e *Engine) Dispatch(message *model.Notification) {
 	}
 
 	if message.ID == "" {
-		message.ID = uuid.New().String()
+		message.ID = utils.RandomId(utils.ID12)
 	}
 
 	if len(message.Channels) == 0 {
@@ -98,7 +98,7 @@ func (e *Engine) dispatchChannels(message *model.Notification) {
 	for _, c := range message.Channels {
 		n, ok := e.notifiers[c]
 		if !ok {
-			e.HandleError(fmt.Errorf("%s: channel %s not found", message.ID, c))
+			e.HandleError(fmt.Errorf(`%s: channel "%s" not found or invalid`, message.ID, c))
 			continue
 		}
 

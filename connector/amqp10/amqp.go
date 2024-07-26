@@ -46,7 +46,7 @@ func (n *AMQPNotifier) New(config *Config) *AMQPNotifier {
 	}
 
 	if config.Name == "" {
-		config.Name = n.Type() + utils.RandomId8()
+		config.Name = n.Type() + utils.RandomId(utils.ID8)
 	}
 
 	if config.Logger == nil {

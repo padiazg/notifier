@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,6 +45,9 @@ func checkName(name string) model.TestCheckNotifierFn {
 
 func TestNew(t *testing.T) {
 	var (
+		buf    bytes.Buffer
+		logger = log.New(&buf, "test-logger", log.LstdFlags)
+
 		checkConfigSet = func() model.TestCheckNotifierFn {
 			return func(t *testing.T, np model.Notifier) {
 				t.Helper()
@@ -105,6 +109,19 @@ func TestNew(t *testing.T) {
 			}
 		}
 
+		checkLogger = func(mark string) model.TestCheckNotifierFn {
+			return func(t *testing.T, np model.Notifier) {
+				n, _ := np.(*WebhookNotifier)
+
+				if assert.NotEmptyf(t, n.Logger, "checkLogger Logger is empty, expected to be set") {
+					n.Logger.Printf(mark)
+					if got := buf.String(); !strings.Contains(got, mark) {
+						t.Errorf("checkLogger log = %s, expected %s", got, mark)
+					}
+				}
+			}
+		}
+
 		tests = []struct {
 			name   string
 			config *Config
@@ -116,6 +133,7 @@ func TestNew(t *testing.T) {
 				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName(""),
+					checkLogger(""),
 				),
 			},
 			{
@@ -128,6 +146,7 @@ func TestNew(t *testing.T) {
 						"x-token-id": "abcdef",
 						"y-feature":  "123456",
 					},
+					Logger: logger,
 				},
 				checks: model.CheckNotifier(
 					checkConfigSet(),
@@ -137,6 +156,7 @@ func TestNew(t *testing.T) {
 					checkHeaderExist("x-token-id", "abcdef"),
 					checkHeaderExist("y-feature", "123456"),
 					checkChannel(false),
+					checkLogger("test-logger"),
 				),
 			},
 		}

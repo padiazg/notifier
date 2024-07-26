@@ -12,7 +12,7 @@ func TestRamdomId8(t *testing.T) {
 
 	// Success
 	var (
-		got  = RandomId8()
+		got  = RandomId(8)
 		test = `[abcdef0-9]{8}`
 		re   = regexp.MustCompile(test)
 	)
@@ -24,5 +24,5 @@ func TestRamdomId8(t *testing.T) {
 	defer func() { randRead = orig_randRead }()
 
 	randRead = func(b []byte) (n int, err error) { return 0, fmt.Errorf("test fail RamdomId8") }
-	assert.Panicsf(t, func() { RandomId8() }, "RamdomId8() expected to panic")
+	assert.Panicsf(t, func() { RandomId(8) }, "RamdomId8() expected to panic")
 }

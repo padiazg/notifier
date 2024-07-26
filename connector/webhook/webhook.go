@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/padiazg/notifier/model"
 	"github.com/padiazg/notifier/utils"
@@ -33,11 +34,6 @@ type WebhookNotifier struct {
 	httpNewRequest func(method string, url string, body io.Reader) (*http.Request, error)
 }
 
-// var (
-// 	jsonMarshal    = json.Marshal
-// 	httpNewRequest = http.NewRequest
-// )
-
 var _ model.Notifier = (*WebhookNotifier)(nil)
 
 func New(config *Config) *WebhookNotifier {
@@ -50,7 +46,11 @@ func (n *WebhookNotifier) New(config *Config) *WebhookNotifier {
 	}
 
 	if config.Name == "" {
-		config.Name = n.Type() + utils.RandomId8()
+		config.Name = n.Type() + utils.RandomId(utils.ID8)
+	}
+
+	if config.Logger == nil {
+		config.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
 	n.Config = config

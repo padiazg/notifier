@@ -185,7 +185,7 @@ func TestAMQPNotifier_New(t *testing.T) {
 				checks: model.CheckNotifier(
 					checkConfigSet(),
 					checkName("amqp-10"),
-					checkLogger("test-logger-a"),
+					checkLogger("test-logger"),
 				),
 			},
 		}
