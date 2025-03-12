@@ -33,12 +33,7 @@ type WebhookNotifier struct {
 	httpNewRequest func(method string, url string, body io.Reader) (*http.Request, error)
 }
 
-// var (
-// 	jsonMarshal    = json.Marshal
-// 	httpNewRequest = http.NewRequest
-// )
-
-var _ model.Notifier = (*WebhookNotifier)(nil)
+var _ notification.Notifier = (*WebhookNotifier)(nil)
 
 func New(config *Config) *WebhookNotifier {
 	return (&WebhookNotifier{}).New(config)
@@ -78,6 +73,7 @@ func (n *WebhookNotifier) Close() error {
 }
 
 // Run starts receiving notifications
+// TODO: add context to catch Done signal, or something like it
 func (n *WebhookNotifier) Run() {
 	for notification := range n.Channel {
 		r := n.Deliver(notification)

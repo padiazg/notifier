@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -507,7 +508,7 @@ func TestWebhookNotifier_Run(t *testing.T) {
 				},
 			},
 			{
-				name:   "success",
+				name:   "success", // TODO: find a better way to check Ok
 				config: &Config{Logger: logger},
 				before: func(n *WebhookNotifier) {
 					n.client = &mockHTTPClient{
@@ -538,14 +539,17 @@ func TestWebhookNotifier_Run(t *testing.T) {
 
 			// start the runner
 			go n.Run()
-			time.Sleep(10 * time.Millisecond)
 
 			// send a single message and close the channel
-			go func() {
-				n.Channel <- &model.Notification{Data: "Test message"}
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func(*sync.WaitGroup) {
+				defer wg.Done()
+				n.Channel <- &notification.Notification{Data: "Test message"}
+				time.Sleep(10 * time.Millisecond)
 				close(n.Channel)
-			}()
-			time.Sleep(10 * time.Millisecond)
+			}(&wg)
+			wg.Wait()
 
 			for _, c := range tt.checks {
 				c(t, n)
