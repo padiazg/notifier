@@ -113,7 +113,7 @@ func (n *AMQPNotifier) Run() {
 	}
 }
 
-func (n *AMQPNotifier) Notify(payload *notification.Notification) {
+func (n *AMQPNotifier) Notify(payload *model.Notification) {
 	// TODO: maybe create a logger channel
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")

@@ -33,7 +33,7 @@ type WebhookNotifier struct {
 	httpNewRequest func(method string, url string, body io.Reader) (*http.Request, error)
 }
 
-var _ notification.Notifier = (*WebhookNotifier)(nil)
+var _ model.Notifier = (*WebhookNotifier)(nil)
 
 func New(config *Config) *WebhookNotifier {
 	return (&WebhookNotifier{}).New(config)

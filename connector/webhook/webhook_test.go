@@ -545,7 +545,7 @@ func TestWebhookNotifier_Run(t *testing.T) {
 			wg.Add(1)
 			go func(*sync.WaitGroup) {
 				defer wg.Done()
-				n.Channel <- &notification.Notification{Data: "Test message"}
+				n.Channel <- &model.Notification{Data: "Test message"}
 				time.Sleep(10 * time.Millisecond)
 				close(n.Channel)
 			}(&wg)
