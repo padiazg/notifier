@@ -271,6 +271,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 		tests = []struct {
 			name       string
 			wantErrMsg string
+			wantPanic  bool
 			before     func(n *AMQPNotifier)
 		}{
 			{
@@ -294,7 +295,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					n.Config.wrapper = nil
 				},
-				wantErrMsg: "can't call Close, Wrapper not set",
+				wantPanic: true,
 			},
 		}
 	)
@@ -311,6 +312,12 @@ func TestAMQPNotifier_Close(t *testing.T) {
 
 				wantErr = tt.wantErrMsg != ""
 			)
+
+			defer func() {
+				if r := recover(); r != nil && !tt.wantPanic {
+					t.Errorf("Close has panicked, expected not to")
+				}
+			}()
 
 			if tt.before != nil {
 				tt.before(n)
