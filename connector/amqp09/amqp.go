@@ -11,7 +11,6 @@ import (
 	"github.com/padiazg/notifier/model"
 	"github.com/padiazg/notifier/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
-	// amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type PublishOptions struct {
@@ -27,7 +26,7 @@ type Config struct {
 	Address         string
 	DeliveryTimeout time.Duration
 	PublishOptions  PublishOptions
-	wrapper         internalWrapperInterface
+	wrapper         amqp09WrapperInterface
 	ctx             context.Context
 }
 
@@ -62,7 +61,7 @@ func (n *AMQPNotifier) New(config *Config) *AMQPNotifier {
 	}
 
 	if config.wrapper == nil {
-		config.wrapper = &internalWrapper{}
+		config.wrapper = &amqp09Wrapper{}
 	}
 
 	n.Config = config
@@ -99,11 +98,10 @@ func (n *AMQPNotifier) Connect() error {
 }
 
 func (n *AMQPNotifier) Close() error {
-	if n.wrapper != nil {
-		return n.wrapper.CloseConn()
+	if n.wrapper == nil {
+		panic("can't call Close, Wrapper not set")
 	}
-
-	return fmt.Errorf("can't call Close, Wrapper not set")
+	return n.wrapper.CloseConn()
 }
 
 func (n *AMQPNotifier) Run() {
@@ -115,7 +113,8 @@ func (n *AMQPNotifier) Run() {
 	}
 }
 
-func (n *AMQPNotifier) Notify(payload *model.Notification) {
+func (n *AMQPNotifier) Notify(payload *notification.Notification) {
+	// TODO: maybe create a logger channel
 	if n.Channel == nil {
 		n.Logger.Print("channel is nil")
 		return

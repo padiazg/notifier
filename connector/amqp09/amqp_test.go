@@ -16,33 +16,33 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockInternalWrapper struct {
+type Mockamqp09Wrapper struct {
 	mock.Mock
 	Config *Config
 	wait   time.Duration
 }
 
-func (m *MockInternalWrapper) Dial(url string) error {
+func (m *Mockamqp09Wrapper) Dial(url string) error {
 	args := m.Called(url)
 	return args.Error(0)
 }
 
-func (m *MockInternalWrapper) CloseConn() error {
+func (m *Mockamqp09Wrapper) CloseConn() error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *MockInternalWrapper) Channel() error {
+func (m *Mockamqp09Wrapper) Channel() error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *MockInternalWrapper) CloseChannel() error {
+func (m *Mockamqp09Wrapper) CloseChannel() error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *MockInternalWrapper) PublishWithContext(ctx context.Context, exchange string, key string, mandatory bool, immediate bool, msg amqp.Publishing) error {
+func (m *Mockamqp09Wrapper) PublishWithContext(ctx context.Context, exchange string, key string, mandatory bool, immediate bool, msg amqp.Publishing) error {
 	args := m.Called(ctx, exchange, key, mandatory, immediate, msg)
 	if m.wait > 0 {
 		fmt.Printf("waiting %d\n", m.wait)
@@ -211,7 +211,7 @@ func TestAMQPNotifier_Connect(t *testing.T) {
 			{
 				name: "success",
 				before: func(n *AMQPNotifier) {
-					w := n.wrapper.(*MockInternalWrapper)
+					w := n.wrapper.(*Mockamqp09Wrapper)
 					w.On("Dial", "amqp://example.com").Return(nil)
 					w.On("Channel").Return(nil)
 				},
@@ -220,7 +220,7 @@ func TestAMQPNotifier_Connect(t *testing.T) {
 			{
 				name: "fail-Dial",
 				before: func(n *AMQPNotifier) {
-					w := n.wrapper.(*MockInternalWrapper)
+					w := n.wrapper.(*Mockamqp09Wrapper)
 					w.On("Dial", "amqp://example.com").Return(fmt.Errorf("test-Dial-error"))
 					w.On("Channel").Return(nil)
 				},
@@ -229,7 +229,7 @@ func TestAMQPNotifier_Connect(t *testing.T) {
 			{
 				name: "fail-Channel",
 				before: func(n *AMQPNotifier) {
-					w := n.wrapper.(*MockInternalWrapper)
+					w := n.wrapper.(*Mockamqp09Wrapper)
 					w.On("Dial", "amqp://example.com").Return(nil)
 					w.On("Channel").Return(fmt.Errorf("test-Dial-error"))
 				},
@@ -244,7 +244,7 @@ func TestAMQPNotifier_Connect(t *testing.T) {
 			var (
 				n = New(&Config{
 					Address: "amqp://example.com",
-					wrapper: &MockInternalWrapper{},
+					wrapper: &Mockamqp09Wrapper{},
 					Logger:  log.New(&buf, "test-logger", log.LstdFlags),
 				})
 
@@ -276,7 +276,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 			{
 				name: "success",
 				before: func(n *AMQPNotifier) {
-					w := n.wrapper.(*MockInternalWrapper)
+					w := n.wrapper.(*Mockamqp09Wrapper)
 					w.On("CloseConn").Return(nil)
 				},
 				wantErrMsg: "",
@@ -284,7 +284,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 			{
 				name: "fail",
 				before: func(n *AMQPNotifier) {
-					w := n.wrapper.(*MockInternalWrapper)
+					w := n.wrapper.(*Mockamqp09Wrapper)
 					w.On("CloseConn").Return(fmt.Errorf("wrapper-CloseConn-error"))
 				},
 				wantErrMsg: "wrapper-CloseConn-error",
@@ -305,7 +305,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 			var (
 				n = New(&Config{
 					Address: "amqp://example.com",
-					wrapper: &MockInternalWrapper{},
+					wrapper: &Mockamqp09Wrapper{},
 					Logger:  log.New(&buf, "test-logger", log.LstdFlags),
 				})
 
@@ -454,7 +454,7 @@ func TestAMQPNotifier_Run(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
@@ -484,7 +484,7 @@ func TestAMQPNotifier_Run(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
@@ -514,14 +514,14 @@ func TestAMQPNotifier_Run(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
 						return payload, nil
 					}
 
-					n.wrapper.(*MockInternalWrapper).wait = 50 * time.Millisecond
+					n.wrapper.(*Mockamqp09Wrapper).wait = 50 * time.Millisecond
 
 					w.On(
 						"PublishWithContext",
@@ -550,7 +550,7 @@ func TestAMQPNotifier_Run(t *testing.T) {
 				n = New(&Config{
 					QueueName:       "test",
 					ctx:             context.TODO(),
-					wrapper:         &MockInternalWrapper{},
+					wrapper:         &Mockamqp09Wrapper{},
 					Logger:          logger,
 					DeliveryTimeout: 30,
 				})
@@ -603,7 +603,7 @@ func TestAMQPNotifier_Deliver(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
@@ -634,7 +634,7 @@ func TestAMQPNotifier_Deliver(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
@@ -664,7 +664,7 @@ func TestAMQPNotifier_Deliver(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
@@ -693,14 +693,14 @@ func TestAMQPNotifier_Deliver(t *testing.T) {
 				before: func(n *AMQPNotifier) {
 					var (
 						payload = []byte("test")
-						w       = n.wrapper.(*MockInternalWrapper)
+						w       = n.wrapper.(*Mockamqp09Wrapper)
 					)
 
 					n.jsonMarshal = func(v any) ([]byte, error) {
 						return payload, nil
 					}
 
-					n.wrapper.(*MockInternalWrapper).wait = 50 * time.Millisecond
+					n.wrapper.(*Mockamqp09Wrapper).wait = 50 * time.Millisecond
 
 					w.On(
 						"PublishWithContext",
@@ -727,7 +727,7 @@ func TestAMQPNotifier_Deliver(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			n := New(&Config{
 				QueueName:       queueName,
-				wrapper:         &MockInternalWrapper{},
+				wrapper:         &Mockamqp09Wrapper{},
 				Logger:          logger,
 				DeliveryTimeout: 10,
 			})

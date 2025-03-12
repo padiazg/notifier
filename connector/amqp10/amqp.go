@@ -23,7 +23,7 @@ type Config struct {
 	ConnOptions     *amqp.ConnOptions
 	SenderOptions   *amqp.SenderOptions
 	SendOptions     *amqp.SendOptions
-	wrapper         internalWrapperInterface
+	wrapper         amqp10WrapperInterface
 	ctx             context.Context
 }
 
@@ -58,7 +58,7 @@ func (n *AMQPNotifier) New(config *Config) *AMQPNotifier {
 	}
 
 	if config.wrapper == nil {
-		config.wrapper = &internalWrapper{}
+		config.wrapper = &amqp10Wrapper{}
 	}
 
 	n.Config = config

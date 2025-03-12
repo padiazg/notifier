@@ -6,7 +6,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type internalWrapperInterface interface {
+type amqp09WrapperInterface interface {
 	Dial(url string) error
 	CloseConn() error
 	Channel() error
@@ -14,31 +14,29 @@ type internalWrapperInterface interface {
 	PublishWithContext(ctx context.Context, exchange string, key string, mandatory bool, immediate bool, msg amqp.Publishing) error
 }
 
-type internalWrapper struct {
+type amqp09Wrapper struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
 }
 
-func (w *internalWrapper) Dial(url string) error {
-	var err error
+func (w *amqp09Wrapper) Dial(url string) (err error) {
 	w.conn, err = amqp.Dial(url)
 	return err
 }
 
-func (w *internalWrapper) CloseConn() error {
+func (w *amqp09Wrapper) CloseConn() error {
 	return w.conn.Close()
 }
 
-func (w *internalWrapper) Channel() error {
-	var err error
+func (w *amqp09Wrapper) Channel() (err error) {
 	w.channel, err = w.conn.Channel()
 	return err
 }
 
-func (w *internalWrapper) CloseChannel() error {
+func (w *amqp09Wrapper) CloseChannel() error {
 	return w.channel.Close()
 }
 
-func (w *internalWrapper) PublishWithContext(ctx context.Context, exchange string, key string, mandatory bool, immediate bool, msg amqp.Publishing) error {
+func (w *amqp09Wrapper) PublishWithContext(ctx context.Context, exchange string, key string, mandatory bool, immediate bool, msg amqp.Publishing) error {
 	return w.channel.PublishWithContext(ctx, exchange, key, mandatory, immediate, msg)
 }
