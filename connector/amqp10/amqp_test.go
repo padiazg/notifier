@@ -145,12 +145,12 @@ func TestAMQPNotifier_New(t *testing.T) {
 				}()
 
 				go func() {
-					close(an.Channel)
+					close(an.channel)
 				}()
 
 				time.Sleep(20 * time.Millisecond)
 				select {
-				case <-an.Channel:
+				case <-an.channel:
 				default:
 					t.Errorf("chechChannel is not closed")
 				}
@@ -402,7 +402,7 @@ func TestAMQPNotifier_Close(t *testing.T) {
 
 func TestAMQPNotifier_GetChannel(t *testing.T) {
 	d := New(&Config{})
-	defer func() { close(d.Channel) }()
+	defer func() { close(d.channel) }()
 	got := d.GetChannel()
 	assert.NotNilf(t, got, "GetChannel() = nil, want not nil")
 	time.Sleep(10 * time.Millisecond)
@@ -457,7 +457,7 @@ func TestWebhookNotifier_Notify(t *testing.T) {
 
 			dn := &AMQPNotifier{
 				Config:  &Config{Logger: logger},
-				Channel: tt.channel,
+				channel: tt.channel,
 			}
 
 			dn.Notify(tt.payload)
@@ -574,8 +574,8 @@ func TestAMQPNotifier_Run(t *testing.T) {
 
 			// send a single message and close the channel
 			go func() {
-				n.Channel <- message
-				close(n.Channel)
+				n.channel <- message
+				close(n.channel)
 			}()
 
 			time.Sleep(100 * time.Millisecond)

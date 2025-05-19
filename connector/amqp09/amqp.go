@@ -33,7 +33,7 @@ type Config struct {
 // AMQPNotifier implements the Notifier interface for message queues
 type AMQPNotifier struct {
 	*Config
-	Channel     chan *model.Notification
+	channel     chan *model.Notification
 	jsonMarshal func(v any) ([]byte, error)
 }
 
@@ -66,7 +66,7 @@ func (n *AMQPNotifier) New(config *Config) *AMQPNotifier {
 
 	n.Config = config
 	n.jsonMarshal = json.Marshal
-	n.Channel = make(chan *model.Notification)
+	n.channel = make(chan *model.Notification)
 
 	return n
 }
@@ -80,7 +80,7 @@ func (n *AMQPNotifier) Name() string {
 }
 
 func (n *AMQPNotifier) GetChannel() chan *model.Notification {
-	return n.Channel
+	return n.channel
 }
 
 func (n *AMQPNotifier) Connect() error {
@@ -105,7 +105,7 @@ func (n *AMQPNotifier) Close() error {
 }
 
 func (n *AMQPNotifier) Run() {
-	for notification := range n.Channel {
+	for notification := range n.channel {
 		r := n.Deliver(notification)
 		if !r.Success {
 			n.Logger.Printf("%s: %+v", n.Name(), r)
@@ -115,7 +115,7 @@ func (n *AMQPNotifier) Run() {
 
 func (n *AMQPNotifier) Notify(payload *model.Notification) {
 	// TODO: maybe create a logger channel
-	if n.Channel == nil {
+	if n.channel == nil {
 		n.Logger.Print("channel is nil")
 		return
 	}
@@ -125,7 +125,7 @@ func (n *AMQPNotifier) Notify(payload *model.Notification) {
 		return
 	}
 
-	n.Channel <- payload
+	n.channel <- payload
 }
 
 func (n *AMQPNotifier) Deliver(message *model.Notification) *model.Result {

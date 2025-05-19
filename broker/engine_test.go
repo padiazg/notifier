@@ -1,4 +1,4 @@
-package engine
+package broker
 
 import (
 	"fmt"
@@ -104,7 +104,7 @@ func notificationHasId() notificationCheckFn {
 	}
 }
 
-func TestNewEngine(t *testing.T) {
+func TestNew(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *Config
@@ -131,7 +131,7 @@ func TestNewEngine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := NewEngine(tt.config)
+			e := New(tt.config)
 
 			for _, c := range tt.checks {
 				c(t, e)
@@ -169,10 +169,10 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := NewEngine(tt.config)
+			e := New(tt.config)
 
 			for _, n := range tt.notifiers {
-				e.RegisterNotifier(n)
+				e.NotifierRegister(n)
 			}
 
 			for _, c := range tt.checks {
@@ -217,13 +217,13 @@ func TestEngine_Start(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				c = &Config{OnError: registerError}
-				e = NewEngine(c)
+				e = New(c)
 			)
 
 			clearErrors()
 
 			for _, n := range tt.notifiers {
-				e.RegisterNotifier(n)
+				e.NotifierRegister(n)
 			}
 
 			e.Start()
@@ -349,13 +349,13 @@ func TestEngine_Dispatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				c = &Config{OnError: registerError}
-				e = NewEngine(c)
+				e = New(c)
 			)
 
 			clearErrors()
 
 			for _, n := range tt.notifiers {
-				e.RegisterNotifier(n)
+				e.NotifierRegister(n)
 			}
 
 			e.Start()

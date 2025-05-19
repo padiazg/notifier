@@ -1,4 +1,4 @@
-package engine
+package broker
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type Engine struct {
 	notifiers map[string]model.Notifier
 }
 
-func NewEngine(config *Config) *Engine {
+func New(config *Config) *Engine {
 	return (&Engine{}).New(config)
 }
 
@@ -32,7 +32,7 @@ func (e *Engine) New(config *Config) *Engine {
 	return e
 }
 
-func (e *Engine) RegisterNotifier(n model.Notifier) string {
+func (e *Engine) NotifierRegister(n model.Notifier) string {
 	id := n.Name()
 	e.notifiers[id] = n
 

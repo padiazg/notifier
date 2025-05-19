@@ -1,4 +1,4 @@
-package engine
+package broker
 
 type Config struct {
 	OnError func(error)
