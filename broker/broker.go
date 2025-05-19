@@ -8,17 +8,17 @@ import (
 	"github.com/padiazg/notifier/model"
 )
 
-// Engine handles the dispatch and tracking of notifications
-type Engine struct {
+// Broker handles the dispatch and tracking of notifications
+type Broker struct {
 	OnError   func(error)
 	notifiers map[string]model.Notifier
 }
 
-func New(config *Config) *Engine {
-	return (&Engine{}).New(config)
+func New(config *Config) *Broker {
+	return (&Broker{}).New(config)
 }
 
-func (e *Engine) New(config *Config) *Engine {
+func (e *Broker) New(config *Config) *Broker {
 	if config == nil {
 		config = &Config{}
 	}
@@ -32,14 +32,14 @@ func (e *Engine) New(config *Config) *Engine {
 	return e
 }
 
-func (e *Engine) NotifierRegister(n model.Notifier) string {
+func (e *Broker) NotifierRegister(n model.Notifier) string {
 	id := n.Name()
 	e.notifiers[id] = n
 
 	return id
 }
 
-func (e *Engine) Start() {
+func (e *Broker) Start() {
 	for _, n := range e.notifiers {
 		if err := n.Connect(); err != nil {
 			e.HandleError(fmt.Errorf("starting notifier %s: %+v", n.Name(), err))
@@ -52,7 +52,7 @@ func (e *Engine) Start() {
 	}
 }
 
-func (e *Engine) Stop() {
+func (e *Broker) Stop() {
 	for _, n := range e.notifiers {
 		if ch := n.GetChannel(); ch != nil {
 			close(ch)
@@ -60,7 +60,7 @@ func (e *Engine) Stop() {
 	}
 }
 
-func (e *Engine) Dispatch(message *model.Notification) {
+func (e *Broker) Dispatch(message *model.Notification) {
 	if message == nil {
 		return
 	}
@@ -76,11 +76,11 @@ func (e *Engine) Dispatch(message *model.Notification) {
 	}
 }
 
-func (e *Engine) dispatchAll(message *model.Notification) {
+func (e *Broker) dispatchAll(message *model.Notification) {
 	wg := sync.WaitGroup{}
 
 	for _, n := range e.notifiers {
-		fmt.Printf("Engine.dispatchAll %s => (%s) %v\n", n.Name(), message.ID, message.Data)
+		fmt.Printf("Broker.dispatchAll %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
 
 		go func(n model.Notifier) {
@@ -92,7 +92,7 @@ func (e *Engine) dispatchAll(message *model.Notification) {
 	wg.Wait()
 }
 
-func (e *Engine) dispatchChannels(message *model.Notification) {
+func (e *Broker) dispatchChannels(message *model.Notification) {
 	wg := sync.WaitGroup{}
 
 	for _, c := range message.Channels {
@@ -102,7 +102,7 @@ func (e *Engine) dispatchChannels(message *model.Notification) {
 			continue
 		}
 
-		fmt.Printf("Engine.dispatchChannels %s => (%s) %v\n", n.Name(), message.ID, message.Data)
+		fmt.Printf("Broker.dispatchChannels %s => (%s) %v\n", n.Name(), message.ID, message.Data)
 		wg.Add(1)
 
 		go func(n model.Notifier) {
@@ -112,7 +112,7 @@ func (e *Engine) dispatchChannels(message *model.Notification) {
 	}
 }
 
-func (e *Engine) HandleError(err error) {
+func (e *Broker) HandleError(err error) {
 	if e.OnError != nil {
 		e.OnError(err)
 	}

@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type brokerTestCheckFn func(*testing.T, *Engine)
-type notificationCheckFn func(*testing.T, *Engine, *model.Notification)
+type brokerTestCheckFn func(*testing.T, *Broker)
+type notificationCheckFn func(*testing.T, *Broker, *model.Notification)
 
 var (
-	checkEngine        = func(fns ...brokerTestCheckFn) []brokerTestCheckFn { return fns }
+	checkBroker        = func(fns ...brokerTestCheckFn) []brokerTestCheckFn { return fns }
 	checkNotifications = func(fns ...notificationCheckFn) []notificationCheckFn { return fns }
 	errors             []error
 )
@@ -30,7 +30,7 @@ func clearErrors() {
 }
 
 func hasOnError(has bool) brokerTestCheckFn {
-	return func(t *testing.T, e *Engine) {
+	return func(t *testing.T, e *Broker) {
 		t.Helper()
 		if has {
 			assert.NotNilf(t, e.OnError, "hasOnError errors expected, none produced")
@@ -41,7 +41,7 @@ func hasOnError(has bool) brokerTestCheckFn {
 }
 
 func hasNotifiers(count int) brokerTestCheckFn {
-	return func(t *testing.T, e *Engine) {
+	return func(t *testing.T, e *Broker) {
 		t.Helper()
 		q := len(e.notifiers)
 		assert.Equalf(t, count, q, "hasNotifiers count=%d, expected %d", q, count)
@@ -49,7 +49,7 @@ func hasNotifiers(count int) brokerTestCheckFn {
 }
 
 func hasErrors(has bool) brokerTestCheckFn {
-	return func(t *testing.T, e *Engine) {
+	return func(t *testing.T, e *Broker) {
 		t.Helper()
 		if has {
 			assert.NotEmptyf(t, errors, "hasErrors errors expected, none produced")
@@ -60,7 +60,7 @@ func hasErrors(has bool) brokerTestCheckFn {
 }
 
 func hasErrorsNotification(has bool) notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *model.Notification) {
+	return func(t *testing.T, e *Broker, n *model.Notification) {
 		t.Helper()
 		if has {
 			assert.NotEmptyf(t, errors, "hasErrorsNotification errors expected, none produced")
@@ -71,7 +71,7 @@ func hasErrorsNotification(has bool) notificationCheckFn {
 }
 
 func notificationReceived() notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *model.Notification) {
+	return func(t *testing.T, e *Broker, n *model.Notification) {
 		t.Helper()
 		if len(n.Channels) == 0 {
 			for _, nt := range e.notifiers {
@@ -92,7 +92,7 @@ func notificationReceived() notificationCheckFn {
 
 // call this checker with a single notifier and a single notification
 func notificationHasId() notificationCheckFn {
-	return func(t *testing.T, e *Engine, n *model.Notification) {
+	return func(t *testing.T, e *Broker, n *model.Notification) {
 		t.Helper()
 		for _, nt := range e.notifiers {
 			data := nt.(*dummy.DummyNotifier).First()
@@ -113,7 +113,7 @@ func TestNew(t *testing.T) {
 		{
 			name:   "default",
 			config: nil,
-			checks: checkEngine(
+			checks: checkBroker(
 				hasOnError(false),
 				hasNotifiers(0),
 			),
@@ -123,7 +123,7 @@ func TestNew(t *testing.T) {
 			config: &Config{
 				OnError: func(err error) {},
 			},
-			checks: checkEngine(
+			checks: checkBroker(
 				hasOnError(true),
 				hasNotifiers(0),
 			),
@@ -140,7 +140,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestEngine_RegisterNotifier(t *testing.T) {
+func TestBroker_RegisterNotifier(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    *Config
@@ -152,7 +152,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 			notifiers: []model.Notifier{
 				webhook.New(&webhook.Config{}),
 			},
-			checks: checkEngine(
+			checks: checkBroker(
 				hasNotifiers(1),
 			),
 		},
@@ -162,7 +162,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 				webhook.New(&webhook.Config{}),
 				amqp.New(&amqp.Config{}),
 			},
-			checks: checkEngine(
+			checks: checkBroker(
 				hasNotifiers(2),
 			),
 		},
@@ -182,7 +182,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 	}
 }
 
-func TestEngine_Start(t *testing.T) {
+func TestBroker_Start(t *testing.T) {
 	tests := []struct {
 		name      string
 		notifiers []model.Notifier
@@ -198,7 +198,7 @@ func TestEngine_Start(t *testing.T) {
 					},
 				},
 			},
-			checks: checkEngine(
+			checks: checkBroker(
 				hasErrors(true),
 			),
 		},
@@ -207,7 +207,7 @@ func TestEngine_Start(t *testing.T) {
 			notifiers: []model.Notifier{
 				&dummy.DummyNotifier{Config: &dummy.Config{Name: "dummy-01"}},
 			},
-			checks: checkEngine(
+			checks: checkBroker(
 				hasErrors(false),
 			),
 		},
@@ -239,13 +239,13 @@ func TestEngine_Start(t *testing.T) {
 	}
 }
 
-func TestEngine_Dispatch(t *testing.T) {
+func TestBroker_Dispatch(t *testing.T) {
 	tests := []struct {
 		name      string
 		message   *model.Notification
 		checks    []notificationCheckFn
 		notifiers []model.Notifier
-		// before  func(e *Engine)
+		// before  func(e *Broker)
 	}{
 		{
 			name: "success-empty-message",

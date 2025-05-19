@@ -22,7 +22,7 @@ const (
 
 func main() {
 	var (
-		engine = (&e.Engine{}).New(&e.Config{
+		engine = (&e.Broker{}).New(&e.Config{
 			OnError: func(err error) {
 				log.Printf("Error: %s", err.Error())
 			},
