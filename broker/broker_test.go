@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type engineTestCheckFn func(*testing.T, *Engine)
+type brokerTestCheckFn func(*testing.T, *Engine)
 type notificationCheckFn func(*testing.T, *Engine, *model.Notification)
 
 var (
-	checkEngine        = func(fns ...engineTestCheckFn) []engineTestCheckFn { return fns }
+	checkEngine        = func(fns ...brokerTestCheckFn) []brokerTestCheckFn { return fns }
 	checkNotifications = func(fns ...notificationCheckFn) []notificationCheckFn { return fns }
 	errors             []error
 )
@@ -29,7 +29,7 @@ func clearErrors() {
 	errors = []error{}
 }
 
-func hasOnError(has bool) engineTestCheckFn {
+func hasOnError(has bool) brokerTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
 		if has {
@@ -40,7 +40,7 @@ func hasOnError(has bool) engineTestCheckFn {
 	}
 }
 
-func hasNotifiers(count int) engineTestCheckFn {
+func hasNotifiers(count int) brokerTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
 		q := len(e.notifiers)
@@ -48,7 +48,7 @@ func hasNotifiers(count int) engineTestCheckFn {
 	}
 }
 
-func hasErrors(has bool) engineTestCheckFn {
+func hasErrors(has bool) brokerTestCheckFn {
 	return func(t *testing.T, e *Engine) {
 		t.Helper()
 		if has {
@@ -108,7 +108,7 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *Config
-		checks []engineTestCheckFn
+		checks []brokerTestCheckFn
 	}{
 		{
 			name:   "default",
@@ -145,7 +145,7 @@ func TestEngine_RegisterNotifier(t *testing.T) {
 		name      string
 		config    *Config
 		notifiers []model.Notifier
-		checks    []engineTestCheckFn
+		checks    []brokerTestCheckFn
 	}{
 		{
 			name: "one-notifier",
@@ -186,7 +186,7 @@ func TestEngine_Start(t *testing.T) {
 	tests := []struct {
 		name      string
 		notifiers []model.Notifier
-		checks    []engineTestCheckFn
+		checks    []brokerTestCheckFn
 	}{
 		{
 			name: "connect-error",
@@ -358,6 +358,7 @@ func TestEngine_Dispatch(t *testing.T) {
 				e.NotifierRegister(n)
 			}
 
+			// TODO: replace with producer/consumer pattern
 			e.Start()
 			time.Sleep(100 * time.Millisecond)
 			e.Dispatch(tt.message)
